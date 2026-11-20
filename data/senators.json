@@ -1,0 +1,58 @@
+[
+  {
+    "id": "risa-hontiveros",
+    "name": "Risa Hontiveros",
+    "portrait": "0",
+    "directory_status": "UI reference example; current membership unverified",
+    "minority_membership": "Unverified",
+    "profile": {}
+  },
+  {
+    "id": "paolo-benigno-aquino-iv",
+    "name": "Paolo Benigno Aquino IV",
+    "portrait": "1",
+    "directory_status": "UI reference example; current membership unverified",
+    "minority_membership": "Unverified",
+    "profile": {}
+  },
+  {
+    "id": "francis-pangilinan",
+    "name": "Francis Pangilinan",
+    "portrait": "2",
+    "directory_status": "UI reference example; current membership unverified",
+    "minority_membership": "Unverified",
+    "profile": {}
+  },
+  {
+    "id": "alan-peter-cayetano",
+    "name": "Alan Peter Cayetano",
+    "portrait": null,
+    "directory_status": "UI reference example; current membership unverified",
+    "minority_membership": "Unverified",
+    "profile": {}
+  },
+  {
+    "id": "pia-cayetano",
+    "name": "Pia Cayetano",
+    "portrait": null,
+    "directory_status": "UI reference example; current membership unverified",
+    "minority_membership": "Unverified",
+    "profile": {}
+  },
+  {
+    "id": "ronald-dela-rosa",
+    "name": "Ronald dela Rosa",
+    "portrait": null,
+    "directory_status": "UI reference example; current membership unverified",
+    "minority_membership": "Unverified",
+    "profile": {}
+  },
+  {
+    "id": "joseph-victor-ejercito",
+    "name": "Joseph Victor Ejercito",
+    "portrait": null,
+    "directory_status": "UI reference example; current membership unverified",
+    "minority_membership": "Unverified",
+    "profile": {}
+  }
+]

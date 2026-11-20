@@ -1,0 +1,42 @@
+// Optional visual QA: install Playwright separately or set PLAYWRIGHT_MODULE.
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const path = require('path');
+const fs = require('fs');
+(async () => {
+  const browser = await chromium.launch({headless: true, ...(process.env.BROWSER_PATH ? {executablePath: process.env.BROWSER_PATH} : {})});
+  const page = await browser.newPage({viewport: {width: 1440, height: 960}});
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  const out = path.resolve('test-results');
+  fs.mkdirSync(out, {recursive: true});
+  const screenshot = async name => {
+    await page.waitForFunction(() => !document.querySelector('[data-testid="stSkeleton"]'));
+    await page.screenshot({path: path.join(out, name), fullPage: true});
+  };
+  await page.goto(process.env.SENTO_URL || 'http://127.0.0.1:8502');
+  await page.getByText('Kilalanin ang Senador Mo!', {exact: true}).waitFor();
+  await page.getByRole('button', {name: 'What bills has this senator authored?', exact: true}).waitFor();
+  if (await page.getByRole('radio').count() !== 2) throw new Error('Expected only Chat and Compare navigation');
+  await screenshot('chat-desktop.png');
+  await page.getByRole('button', {name: 'What bills has this senator authored?', exact: true}).click();
+  await page.getByText('SIMULATED AI RESPONSE — DEMONSTRATION DATA', {exact: true}).waitFor();
+  await page.screenshot({path: path.join(out, 'conversation-desktop.png'), fullPage: true});
+  await page.locator('.st-key-navbar label').filter({hasText: 'COMPARE'}).click();
+  await page.getByText('Compare Senators', {exact: true}).waitFor();
+  await page.screenshot({path: path.join(out, 'compare-desktop.png'), fullPage: true});
+  await page.getByRole('link', {name: 'Bills', exact: true}).click();
+  await page.waitForFunction(() => document.querySelector('.comparison-scroll').scrollTop > 0);
+  await page.getByText('Compare Senators', {exact: true}).waitFor();
+  await page.getByRole('link', {name: 'Education', exact: true}).click();
+  await page.setViewportSize({width: 390, height: 844});
+  await page.screenshot({path: path.join(out, 'compare-mobile.png'), fullPage: true});
+  await page.locator('.st-key-navbar label').filter({hasText: 'CHAT'}).click();
+  await page.getByText('Browse senators', {exact: true}).waitFor();
+  await page.getByText('Browse senators', {exact: true}).click();
+  await page.getByPlaceholder('Search senators…').waitFor({state: 'hidden'});
+  await page.screenshot({path: path.join(out, 'chat-mobile.png'), fullPage: true});
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
+  console.log(JSON.stringify({errors, mobileHorizontalOverflow: overflow, screenshots: out}));
+  await browser.close();
+  if (errors.length || overflow) process.exitCode = 1;
+})().catch(e => { console.error(e.message); process.exit(1); });

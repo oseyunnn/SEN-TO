@@ -1,0 +1,50 @@
+{
+  "default": {
+    "formality": "neutral",
+    "language": "English",
+    "presentation": "paragraphs",
+    "description": "Neutral demonstration style, not a senator’s actual personality."
+  },
+  "risa-hontiveros": {
+    "formality": "neutral",
+    "language": "English",
+    "presentation": "paragraphs",
+    "description": "Neutral demonstration style, not a senator’s actual personality."
+  },
+  "paolo-benigno-aquino-iv": {
+    "formality": "neutral",
+    "language": "English",
+    "presentation": "numbered",
+    "description": "Neutral demonstration style, not a senator’s actual personality."
+  },
+  "francis-pangilinan": {
+    "formality": "neutral",
+    "language": "English",
+    "presentation": "paragraphs",
+    "description": "Neutral demonstration style, not a senator’s actual personality."
+  },
+  "alan-peter-cayetano": {
+    "formality": "neutral",
+    "language": "English",
+    "presentation": "paragraphs",
+    "description": "Neutral demonstration style, not a senator’s actual personality."
+  },
+  "pia-cayetano": {
+    "formality": "neutral",
+    "language": "English",
+    "presentation": "paragraphs",
+    "description": "Neutral demonstration style, not a senator’s actual personality."
+  },
+  "ronald-dela-rosa": {
+    "formality": "neutral",
+    "language": "English",
+    "presentation": "paragraphs",
+    "description": "Neutral demonstration style, not a senator’s actual personality."
+  },
+  "joseph-victor-ejercito": {
+    "formality": "neutral",
+    "language": "English",
+    "presentation": "paragraphs",
+    "description": "Neutral demonstration style, not a senator’s actual personality."
+  }
+}
