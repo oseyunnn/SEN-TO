@@ -6,3 +6,6 @@ __pycache__/
 *.sqlite3-*
 .env
 test-results/
+/data/corpus/originals/*
+!/data/corpus/originals/.gitkeep
+/data/corpus/processed/
