@@ -17,6 +17,7 @@ def test_default_pipeline_uses_local_ollama_and_lazy_chroma(monkeypatch, tmp_pat
 
 def test_openai_generator_can_be_selected_without_startup_api_call(monkeypatch, tmp_path):
     monkeypatch.setenv("SENTO_GENERATOR_PROVIDER", "openai")
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://aiki-labs.up.railway.app/api/v1")
     monkeypatch.setenv("SENTO_CHROMA_PATH", str(tmp_path / "local-index"))
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
@@ -24,6 +25,7 @@ def test_openai_generator_can_be_selected_without_startup_api_call(monkeypatch, 
 
     assert isinstance(pipeline.generator.provider, OpenAIResponsesProvider)
     assert pipeline.generator.provider.model == "gpt-6-luna"
+    assert pipeline.generator.provider.base_url == "https://aiki-labs.up.railway.app/api/v1"
     assert pipeline.retriever.persist_directory == tmp_path / "local-index"
 
 

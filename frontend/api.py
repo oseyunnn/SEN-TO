@@ -4,7 +4,6 @@ These functions keep the UI independent from transport and backend details.
 Replace their bodies with API calls when a backend endpoint is ready.
 """
 
-
 def get_senator_directory():
     """Load the local example directory until a directory endpoint exists."""
     # TODO: Replace with GET /api/senators when the backend endpoint exists.
@@ -13,22 +12,16 @@ def get_senator_directory():
     return SenatorService()
 
 
+def get_chatbot_service():
+    """Build the stateless RAG service for the current chat request."""
+    from backend.chatbot_service import ChatbotService
+
+    return ChatbotService()
+
+
 def send_chat_message(senator_id, message):
-    """Return an honest placeholder until the chat endpoint is connected."""
-    # TODO: Replace with POST /api/chat when the source-backed endpoint exists.
-    return {
-        "label": "BACKEND CONNECTION PLACEHOLDER",
-        "topic": "sources",
-        "answer": (
-            "The chat interface is ready. Connect `send_chat_message()` to the "
-            "source-backed chat endpoint to return an answer here."
-        ),
-        "citations": [],
-        "retrieval_count": 0,
-        "limitation": "The chat endpoint is not connected. No source lookup was performed.",
-        "senator_id": senator_id,
-        "message": message,
-    }
+    """Run one question through the selected-subject RAG pipeline."""
+    return get_chatbot_service().ask(message, senator_id)
 
 
 def get_comparison_records(directory, senator_ids):

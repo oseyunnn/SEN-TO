@@ -2,6 +2,8 @@
 
 The current local stack uses ChromaDB for persistent vector storage and Ollama for embeddings. It does not call a hosted embedding service. The Chroma `PersistentClient` writes under `data/corpus/processed/chroma/`; that directory is generated data and stays out of Git.
 
+The Streamlit Chat page now calls the RAG pipeline through `frontend/api.py`. The current corpus is empty, so the pipeline abstains before generation and makes no LLM request until reviewed passages are indexed. See [SECURITY_ASSESSMENT.md](SECURITY_ASSESSMENT.md) for input, prompt, context, rate, and output controls and their limitations.
+
 ## Configure Ollama embeddings
 
 Install and start Ollama, then download the configured embedding model:
@@ -30,13 +32,27 @@ To select OpenAI GPT-6 Luna, set these process environment variables:
 ```text
 SENTO_GENERATOR_PROVIDER=openai
 OPENAI_API_KEY=<your key, supplied through your local secrets manager>
+OPENAI_BASE_URL=https://aiki-labs.up.railway.app/api/v1
 SENTO_OPENAI_MODEL=gpt-6-luna
 SENTO_OPENAI_REASONING_EFFORT=low
 ```
 
-The OpenAI adapter uses the Responses API model ID `gpt-6-luna`. OpenAI describes GPT-6 Luna as a focused, high-volume text-generation model; check current [model documentation](https://developers.openai.com/api/docs/models/gpt-6-luna) and account availability before deployment. The model generates answers; Ollama remains the separate embedding provider unless a future embedding adapter is configured.
+The adapter passes `OPENAI_BASE_URL` (or `SENTO_OPENAI_BASE_URL`) to the OpenAI SDK and sends Responses API requests to `{base_url}/responses`. The configured gateway must support the OpenAI Responses API and the model name in `SENTO_OPENAI_MODEL`; if its API supports only Chat Completions, this adapter will need a compatible provider implementation. The current default model remains `gpt-6-luna`; set it to a model name supported by your gateway. Ollama remains the separate embedding provider.
 
-When OpenAI is selected, SEN’TO sends the current question, selected senator name, retrieved passage text, and passage citation metadata to the OpenAI API. It does not send the rest of the session history. The request sets `store=false`, but that does not disable all API retention; review [OpenAI API data controls](https://developers.openai.com/api/docs/guides/your-data) and the organization’s configured controls before using real records. Do not commit API keys. `.env.example` contains variable names only, and the app does not load `.env` automatically.
+The app reads process environment variables and does not load `.env` itself. If your values are stored in a standard shell-compatible `.env`, make them available to the launch process from the project directory, then start Streamlit:
+
+```sh
+set -a
+source .env
+set +a
+streamlit run app.py
+```
+
+This loads the variables into that shell session; it does not change the file. On another operating system, use that environment's standard way to export the variables before launching the app.
+
+When OpenAI is selected and evidence is retrieved, SEN’TO sends the current question, selected senator name, retrieved passage text, and passage citation metadata to the configured API base URL. It does not send the rest of the session history. The request sets `store=false`, but this does not control retention by a third-party gateway; check that provider's data policy before sending records. Do not commit API keys. `.env.example` contains variable names only, and the app does not read `.env` automatically. Make the variables available in the process environment before starting Streamlit.
+
+The generator sends only the current question and bounded retrieved evidence; it does not receive Streamlit's prior chat history. Local generation is configured with an 8,192-token context and a 700-token output ceiling; a conservative tokenizer-independent estimate rejects inputs that appear to exceed the prompt budget. OpenAI requests set a 700-token output ceiling and a 45-second client timeout. These values bound resource use but do not verify factual support. The UI currently limits a session to eight questions per rolling minute; a future server endpoint must apply its own shared rate limit because per-session limits can be bypassed by creating another session.
 
 ## Build the index
 
