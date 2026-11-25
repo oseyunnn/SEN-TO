@@ -11,10 +11,11 @@
 - Preserved provenance on every generated chunk, including source title and issuing body, URL, dates, period, record type, verification status, page or section locator, original-file SHA-256, and processing versions. Chunk text is marked as untrusted source material.
 - Added atomic JSONL output at `data/corpus/processed/chunks.jsonl` and documentation describing how to curate, ingest, and manually review records.
 - Added a second ingestion path for the fixed 13-section, one-file-per-senator Markdown format. Inline numeric references are resolved against the end bibliography and copied onto each claim chunk; malformed or unverified references stop ingestion. Reference-only sample files are skipped.
+- Added a persistent local Chroma index and an Ollama embedding adapter. Indexing filters out chunks without verified senator links and source citations, and refreshes stale chunk IDs. Retrieval applies senator, verification, optional period, and cosine-distance filters.
 
 ## Current state and limits
 
-The original-document manifest contains no records, and the only senator Markdown file is a skipped reference sample, so there are no ingested or reviewed chunks available to answer questions. The ingestion pipeline prepares source text; it is not query-time retrieval. No real retriever, embeddings, vector store, LLM generator, evidence-grounded validator, or citation renderer is connected to Chat. The old mock retrieval and generation modules remain in the repository as legacy code, but the default active Chat path does not use them.
+The original-document manifest contains no records, and the only senator Markdown file is a skipped reference sample, so there are no ingested or reviewed chunks available to answer questions. The ingestion and vector-index stages are implemented, but the Chat UI is not yet connected to query-time retrieval, generation, evidence validation, or citation rendering. The old mock retrieval and generation modules remain in the repository as legacy code, but the active Chat path does not use them.
 
 ## Implementation plan for the remaining RAG
 
@@ -38,9 +39,9 @@ The intended coverage is the 24 Senate seats of the 20th Congress. This is a res
 
 **Ready to proceed when:** a reviewer can trace each pilot chunk back to a reviewed source file, canonical URL, and exact page or section.
 
-### 3. Implement local query retrieval
+### 3. Connect local query retrieval
 
-- Add a production retriever for the processed JSONL corpus. Start with a small local keyword/full-text index; do not add embeddings or a hosted vector service until measured search quality shows a need.
+- Connect the Chroma retriever to the processed JSONL corpus using the local Ollama embedding adapter. Keep the embedding provider behind its protocol so another provider can be selected without changing retrieval or chunk metadata.
 - Filter by verified senator association and relevant period before ranking. Define how records with no verified senator association can answer institution-level questions without leaking into a senator-specific answer.
 - Return chunk IDs plus full provenance and locators. Enforce the same subject/period checks again at the pipeline boundary, including for injected retrievers.
 - Return an explicit no-evidence result when no suitable passage is found; never fall back to the retired mock corpus.

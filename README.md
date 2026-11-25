@@ -23,12 +23,13 @@ In the provided development environment, `.venv` uses the already installed Stre
 
 - Searchable reference directory, reusable profiles, configurable suggested questions, and independent chat histories per senator.
 - Developer-run ingestion of curated PDF, HTML, Markdown source documents, and sectioned per-senator Markdown records into provenance-preserving chunks. Ingestion does not fetch URLs.
+- Local Chroma vector indexing with a configurable Ollama embedding model; Chat generation and validation are still being connected.
 - Two- or three-person comparisons with distinct selections, eight consistent categories, the same comparison period, and clear missing-data states.
 - Screenshot-derived colors, pill navigation, rounded white panels, profile portraits, chat bubbles, and responsive CSS. Mobile users can collapse the directory using “Browse senators/topics”.
 
 ## Data and limitations
 
-No source-backed answer system is connected yet. No verified documents are currently in the corpus. The old demonstration documents are not used by the active Chat UI.
+No reviewed documents are currently in the corpus, so the active Chat UI does not yet have evidence to answer from. The old demonstration documents are not used by the active Chat UI.
 
 The seven names are directory examples supplied in the designs, not a verified current roster or Minority Bloc list. The displayed count reflects the actual local directory rather than the design’s illustrative “24”. Senate and Minority Bloc membership remain unverified. All profile and comparison facts are unavailable until records are collected. Missing information does not imply inactivity or a lack of accomplishments.
 
@@ -53,7 +54,7 @@ tests/                       service, policy, persistence, and Streamlit UI test
 tools/seed_data.py            regenerate bundled JSON demonstration fixtures
 ```
 
-`ai/ingestion.py` validates a local manifest, extracts selectable text from PDF or local HTML files, normalizes Unicode and whitespace, and emits deterministic JSONL chunks carrying source provenance, page/section locators, content checksums, and processing versions. `ai/senator_markdown.py` parses the fixed senator section format and binds inline reference IDs to verified bibliography metadata. See [docs/INGESTION.md](docs/INGESTION.md) and [docs/SENATOR_RECORD_FORMAT.md](docs/SENATOR_RECORD_FORMAT.md). Both importers only process developer-curated local files and do not crawl or fetch web pages. Query retrieval, embeddings/vector storage, LLM generation, and evidence validation remain future work.
+`ai/ingestion.py` validates a local manifest, extracts selectable text from PDF or local HTML files, normalizes Unicode and whitespace, and emits deterministic JSONL chunks carrying source provenance, page/section locators, content checksums, and processing versions. `ai/senator_markdown.py` parses the fixed senator section format and binds inline reference IDs to verified bibliography metadata. See [docs/INGESTION.md](docs/INGESTION.md) and [docs/SENATOR_RECORD_FORMAT.md](docs/SENATOR_RECORD_FORMAT.md). Both importers only process developer-curated local files and do not crawl or fetch web pages. Reviewed chunks can be embedded through Ollama and persisted in a local Chroma index; live retrieval, generation, evidence validation, and the Chat connection remain in progress. See [docs/RAG_SETUP.md](docs/RAG_SETUP.md).
 
 See [docs/RAG_PROGRESS.md](docs/RAG_PROGRESS.md) for a dated summary of completed RAG groundwork and remaining work.
 

@@ -1,3 +1,4 @@
 streamlit>=1.50,<2
 pytest>=8.3,<10
 pypdf>=5,<8
+chromadb>=1.0,<2
