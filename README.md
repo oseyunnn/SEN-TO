@@ -1,6 +1,6 @@
 # SEN’TO — Kilalanin ang Senador Mo!
 
-A local educational civic prototype built with Python and Streamlit. It has Home, Chat, and Compare pages. This frontend-only pass uses explicit Chat and Compare adapter placeholders; it does not call the existing chat or comparison services. The Community page has been removed.
+A local educational civic prototype built with Python and Streamlit. It has Home, Chat, and Compare pages. Chat now calls the source-grounded RAG pipeline through the frontend adapter. The Compare adapter remains a frontend placeholder. The Community page has been removed.
 
 ## Run locally
 
@@ -23,13 +23,13 @@ In the provided development environment, `.venv` uses the already installed Stre
 
 - Landing page, searchable reference directory, reusable profiles, configurable suggested questions, and independent chat histories per senator.
 - Developer-run ingestion of curated PDF, HTML, Markdown source documents, and sectioned per-senator Markdown records into provenance-preserving chunks. Ingestion does not fetch URLs.
-- Existing local Chroma vector indexing, Ollama embeddings, generator adapters, and citation checks remain separate from the frontend; the UI adapters are ready to connect when endpoints are defined.
+- Local Chroma retrieval, Ollama embeddings, Ollama/OpenAI generator adapters, and citation checks power Chat. The current reviewed corpus is empty, so the pipeline abstains until reviewed records are indexed.
 - Two- or three-person comparisons with distinct selections, eight consistent categories, the same comparison period, and clear missing-data states.
 - Screenshot-derived colors, pill navigation, rounded white panels, profile portraits, chat bubbles, and responsive CSS.
 
 ## Data and limitations
 
-The current corpus contains no reviewed records. The Chat frontend currently returns a connection placeholder and does not query the existing RAG pipeline. The RAG implementation remains in the repository, but it must be connected through the frontend adapter before the UI can return source-backed answers. The old demonstration documents are not used by the active Chat UI. The directory contains 24 names listed in the Philippine Senate's official 20th Congress group photo release dated 28 July 2025 ([source](https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp)); this is a dated roster reference, not a live membership check. The first three supplied mockup portraits remain illustrative; the other senators use placeholders. Profile facts, legislative records, and Minority Bloc membership remain unverified. Missing information does not imply inactivity or a lack of accomplishments.
+The current corpus contains no reviewed records. Chat now invokes the RAG pipeline, which abstains because there are no reviewed passages indexed; no LLM request is made without retrieved evidence. The old demonstration documents are not used by the active Chat UI. The directory contains 24 names listed in the Philippine Senate's official 20th Congress group photo release dated 28 July 2025 ([source](https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp)); this is a dated roster reference, not a live membership check. The first three supplied mockup portraits remain illustrative; the other senators use placeholders. Profile facts, legislative records, and Minority Bloc membership remain unverified. Missing information does not imply inactivity or a lack of accomplishments.
 
 The existing directory entries remain design examples, not a verified roster. The future assistant should speak about senators in third person and preserve source attribution and uncertainty.
 
@@ -43,7 +43,7 @@ The former Community storage/services are retained as unused backend code; exist
 app.py                       application entry point and session defaults
 frontend/components/         navigation, directory, profiles, bubbles, sources
 frontend/pages/              landing, chat, and comparison
-frontend/api.py              frontend service adapter placeholders
+frontend/api.py              directory/chat/compare service adapters; Chat invokes the RAG service
 frontend/styles/custom.css   reference-based desktop and responsive styling
 backend/                     Streamlit-independent domain services and policies
 ai/                          source and senator-record ingestion plus RAG interfaces
@@ -53,7 +53,7 @@ tests/                       service, policy, persistence, and Streamlit UI test
 tools/seed_data.py            regenerate bundled JSON demonstration fixtures
 ```
 
-`ai/ingestion.py` validates a local manifest, extracts selectable text from PDF or local HTML files, normalizes Unicode and whitespace, and emits deterministic JSONL chunks carrying source provenance, page/section locators, content checksums, and processing versions. `ai/senator_markdown.py` parses the fixed senator section format and binds inline numeric references to verified bibliography metadata. See [docs/INGESTION.md](docs/INGESTION.md) and [docs/SENATOR_RECORD_FORMAT.md](docs/SENATOR_RECORD_FORMAT.md). Both importers only process developer-curated local files and do not crawl or fetch web pages. `ai/vector_store.py` indexes reviewed chunks in Chroma using Ollama embeddings; `ai/pipeline.py` filters by selected senator, asks the configured generator, validates evidence markers, and prepares citations. See [docs/RAG_SETUP.md](docs/RAG_SETUP.md) for setup and data flow.
+`ai/ingestion.py` validates a local manifest, extracts selectable text from PDF or local HTML files, normalizes Unicode and whitespace, and emits deterministic JSONL chunks carrying source provenance, page/section locators, content checksums, and processing versions. `ai/senator_markdown.py` parses the fixed senator section format and binds inline numeric references to verified bibliography metadata. See [docs/INGESTION.md](docs/INGESTION.md) and [docs/SENATOR_RECORD_FORMAT.md](docs/SENATOR_RECORD_FORMAT.md). Both importers only process developer-curated local files and do not crawl or fetch web pages. `ai/vector_store.py` indexes reviewed chunks in Chroma using Ollama embeddings; `ai/pipeline.py` filters by selected senator, calls the configured generator, validates evidence markers, and prepares citations. The Chat adapter invokes this pipeline. See [docs/RAG_SETUP.md](docs/RAG_SETUP.md) for setup and data flow, and [docs/SECURITY_ASSESSMENT.md](docs/SECURITY_ASSESSMENT.md) for the security review and limits.
 
 See [docs/RAG_PROGRESS.md](docs/RAG_PROGRESS.md) for implementation status, corpus limitations, and remaining data review work.
 
@@ -65,7 +65,7 @@ Retained legacy Community data defaults to `database/community.sqlite3`. Set `SE
 python -m pytest -q
 ```
 
-Tests cover ingestion and citation parsing, embedding/index filters, retrieval isolation, generator adapters, citation integrity, unsupported evidence, neutrality, comparison constraints, SQLite persistence, moderation, ownership checks, sorting/filtering, and page navigation. UI tests use temporary databases, so they do not alter normal community data. In restricted Windows environments, specify a writable temporary directory with `--basetemp=test-results/pytest-run`.
+Tests cover ingestion and citation parsing, embedding/index filters, retrieval isolation, generator adapters, citation integrity, English/Tagalog/Taglish prompt handling, Unicode normalization, context and output limits, per-session throttling, unsupported evidence, neutrality, comparison constraints, SQLite persistence, moderation, ownership checks, sorting/filtering, and page navigation. UI tests use temporary databases, so they do not alter normal community data. In restricted Windows environments, specify a writable temporary directory with `--basetemp=test-results/pytest-run`.
 
 The optional `tools/browser_check.cjs` requires Playwright (not an application dependency); configure `SENTO_URL`, `PLAYWRIGHT_MODULE`, and `BROWSER_PATH` for your environment.
 

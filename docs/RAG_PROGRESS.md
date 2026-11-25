@@ -1,27 +1,29 @@
 # SEN’TO RAG progress
 
-**Status as of 25 November 2026**
+**Status as of 26 November 2026**
 
 ## Implementation status
 
-The RAG software path is connected from local source files to the Streamlit chat:
+The RAG backend path is connected to the Streamlit Chat page through `frontend/api.py::send_chat_message`. It calls retrieval, generation when usable evidence exists, citation validation, and source display. The source manifest is empty, so the current chat abstains before any model request:
 
 1. **Ingestion:** Developers curate source files and metadata in a manifest or a per-senator Markdown file. The importers parse PDFs, local HTML, and the fixed 13-section senator format, preserve source provenance and locators, and write JSONL chunks. They do not crawl or download web pages.
 2. **Indexing:** The indexer reads reviewed chunks and stores embeddings in a persistent local Chroma collection. Ollama is the default embedding provider. Chunks without a verified senator association, a verified citation, or verified status are excluded.
 3. **Retrieval and generation:** Retrieval filters to the selected senator and verified records, with an optional period filter and configurable cosine-distance cutoff. The pipeline checks the selected senator again before generation. The default generator uses local Ollama; an optional OpenAI Responses adapter targets `gpt-6-luna`.
-4. **Validation and interface:** The pipeline checks that generated evidence markers resolve to retrieved chunks and safe, verified source metadata. Chat displays citations, source title, publisher, type, relevant period, locator, and available dates. It distinguishes no evidence from provider failure and withholds answers that fail citation checks.
+4. **Validation and interface:** The pipeline checks that generated evidence markers resolve to retrieved chunks and safe, verified source metadata. The Chat UI displays citations returned by the pipeline.
+
+5. **Security controls:** Current backend checks normalize and bound questions, refuse targeted private-prompt and bulk-retrieval requests, serialize user/retrieved content as JSON data, cap retrieved context and provider output, preserve senator/source filters, validate citations, and withhold overlong or malformed outputs. The UI applies an eight-requests-per-minute session limit and caps rendered history. These controls are not a guarantee against novel prompt injections or semantic hallucinations.
 
 The implementation uses Python and Streamlit with ChromaDB and Ollama adapters. It does not add FastAPI or LangChain because they are not needed by the existing Streamlit application. Embedding, generation, and retrieval seams remain replaceable.
 
 ## Current corpus and limits
 
-The source manifest has no records. `data/senator_records/francis-escudero.md` is a reference-only format example and is intentionally skipped. Therefore, the current index contains no usable evidence and the chat abstains on factual questions. The seven entries in `data/senators.json` remain design examples, not a verified current roster. The planned 24-seat scope for the 20th Congress still needs a dated roster check and should not be implied by this UI directory.
+The source manifest has no records. `data/senator_records/francis-escudero.md` is a reference-only format example and is intentionally skipped. Therefore, the current index contains no usable evidence. The Chat UI calls the RAG pipeline, which abstains until reviewed records are indexed. The 24 names are based on the Senate's dated group-photo roster, not a live membership check. Profile facts and Minority Bloc membership remain unverified.
 
 Citation validation is a mechanical integrity check: markers must point to retrieved passages, whose source metadata and HTTPS links pass checks. It does not verify that every generated claim is semantically supported by its cited passage. A human review set is required before presenting the system as factually validated. Missing evidence means this dataset could not confirm a point; it does not show that no record exists.
 
 ## Run the local pipeline
 
-Follow [RAG_SETUP.md](RAG_SETUP.md) to configure Ollama, ingest reviewed source files, and build the index:
+Follow [RAG_SETUP.md](RAG_SETUP.md) to configure Ollama/OpenAI generation, ingest reviewed source files, and build the index. Running Streamlit invokes this pipeline when a question is submitted:
 
 ```sh
 python tools/ingest_documents.py
@@ -44,4 +46,4 @@ Local Ollama generation is the default. To use OpenAI, configure `SENTO_GENERATO
 4. Evaluate supported questions, deliberate no-evidence questions, senator isolation, optional period filtering, conflicting or stale passages, and prompt injection in source text. Tune retrieval only against reviewed examples.
 5. Review answers for claim-to-source support and distinctions such as author vs sponsor, filed vs enacted, vote vs abstention/absence, and allegation vs official finding. The current automatic validator does not check semantic entailment.
 
-Until this work is completed, describe SEN’TO as having a connected RAG implementation with an empty research corpus, not as having comprehensive or fully verified coverage of Senate records.
+Until the corpus and answer-review work is completed, describe SEN’TO as a connected RAG prototype with an empty evidence corpus, not as a comprehensive Senate-record service.
