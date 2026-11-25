@@ -1,1 +1,1 @@
-"""Chat and comparison views."""
+"""Streamlit page renderers for the SEN’TO frontend."""

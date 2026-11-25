@@ -24,7 +24,7 @@ def avatar(senator, size="small"):
 
 def profile(senator):
     with st.expander("Profile & available sources"):
-        st.caption("Directory example from the supplied design. Current Senate and Minority Bloc membership are unverified.")
+        st.caption("Roster name from the official 20th Congress Senate source dated 28 July 2025. Profile details and Minority Bloc membership are unverified.")
         for key, title in SECTIONS.items():
             record = senator.get("profile", {}).get(key, {})
             st.markdown(f"**{title}**")

@@ -3,56 +3,244 @@
     "id": "risa-hontiveros",
     "name": "Risa Hontiveros",
     "portrait": "0",
-    "directory_status": "UI reference example; current membership unverified",
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
     "minority_membership": "Unverified",
-    "profile": {}
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28"
   },
   {
     "id": "paolo-benigno-aquino-iv",
     "name": "Paolo Benigno Aquino IV",
     "portrait": "1",
-    "directory_status": "UI reference example; current membership unverified",
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
     "minority_membership": "Unverified",
-    "profile": {}
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28",
+    "official_name": "Paolo Benigno “Bam” Aquino IV"
   },
   {
     "id": "francis-pangilinan",
     "name": "Francis Pangilinan",
     "portrait": "2",
-    "directory_status": "UI reference example; current membership unverified",
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
     "minority_membership": "Unverified",
-    "profile": {}
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28",
+    "official_name": "Francis “Kiko” Pangilinan"
   },
   {
     "id": "alan-peter-cayetano",
     "name": "Alan Peter Cayetano",
     "portrait": null,
-    "directory_status": "UI reference example; current membership unverified",
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
     "minority_membership": "Unverified",
-    "profile": {}
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28"
   },
   {
     "id": "pia-cayetano",
     "name": "Pia Cayetano",
     "portrait": null,
-    "directory_status": "UI reference example; current membership unverified",
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
     "minority_membership": "Unverified",
-    "profile": {}
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28"
   },
   {
     "id": "ronald-dela-rosa",
     "name": "Ronald dela Rosa",
     "portrait": null,
-    "directory_status": "UI reference example; current membership unverified",
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
     "minority_membership": "Unverified",
-    "profile": {}
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28",
+    "official_name": "Ronald “Bato” Dela Rosa"
   },
   {
     "id": "joseph-victor-ejercito",
     "name": "Joseph Victor Ejercito",
     "portrait": null,
-    "directory_status": "UI reference example; current membership unverified",
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
     "minority_membership": "Unverified",
-    "profile": {}
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28",
+    "official_name": "Joseph Victor “JV” Ejercito"
+  },
+  {
+    "id": "manuel-lito-lapid",
+    "name": "Manuel “Lito” Lapid",
+    "portrait": null,
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
+    "minority_membership": "Unverified",
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28"
+  },
+  {
+    "id": "panfilo-ping-lacson",
+    "name": "Panfilo “Ping” Lacson",
+    "portrait": null,
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
+    "minority_membership": "Unverified",
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28"
+  },
+  {
+    "id": "camille-villar",
+    "name": "Camille Villar",
+    "portrait": null,
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
+    "minority_membership": "Unverified",
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28"
+  },
+  {
+    "id": "imee-marcos",
+    "name": "Imee Marcos",
+    "portrait": null,
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
+    "minority_membership": "Unverified",
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28"
+  },
+  {
+    "id": "jinggoy-ejercito-estrada",
+    "name": "Jinggoy Ejercito Estrada",
+    "portrait": null,
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
+    "minority_membership": "Unverified",
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28"
+  },
+  {
+    "id": "francis-chiz-escudero",
+    "name": "Francis “Chiz” Escudero",
+    "portrait": null,
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
+    "minority_membership": "Unverified",
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28"
+  },
+  {
+    "id": "joel-villanueva",
+    "name": "Joel Villanueva",
+    "portrait": null,
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
+    "minority_membership": "Unverified",
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28"
+  },
+  {
+    "id": "vicente-sotto-iii",
+    "name": "Vicente Sotto III",
+    "portrait": null,
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
+    "minority_membership": "Unverified",
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28"
+  },
+  {
+    "id": "loren-legarda",
+    "name": "Loren Legarda",
+    "portrait": null,
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
+    "minority_membership": "Unverified",
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28"
+  },
+  {
+    "id": "rodante-marcoleta",
+    "name": "Rodante Marcoleta",
+    "portrait": null,
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
+    "minority_membership": "Unverified",
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28"
+  },
+  {
+    "id": "raffy-tulfo",
+    "name": "Raffy Tulfo",
+    "portrait": null,
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
+    "minority_membership": "Unverified",
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28"
+  },
+  {
+    "id": "mark-villar",
+    "name": "Mark Villar",
+    "portrait": null,
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
+    "minority_membership": "Unverified",
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28"
+  },
+  {
+    "id": "juan-miguel-migz-zubiri",
+    "name": "Juan Miguel “Migz” Zubiri",
+    "portrait": null,
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
+    "minority_membership": "Unverified",
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28"
+  },
+  {
+    "id": "robinhood-padilla",
+    "name": "Robinhood Padilla",
+    "portrait": null,
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
+    "minority_membership": "Unverified",
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28"
+  },
+  {
+    "id": "win-gatchalian",
+    "name": "Win Gatchalian",
+    "portrait": null,
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
+    "minority_membership": "Unverified",
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28"
+  },
+  {
+    "id": "erwin-tulfo",
+    "name": "Erwin Tulfo",
+    "portrait": null,
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
+    "minority_membership": "Unverified",
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28"
+  },
+  {
+    "id": "christopher-lawrence-bong-go",
+    "name": "Christopher Lawrence “Bong” Go",
+    "portrait": null,
+    "directory_status": "Listed in the official 20th Congress roster on 2025-07-28",
+    "minority_membership": "Unverified",
+    "profile": {},
+    "roster_source": "https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp",
+    "roster_source_date": "2025-07-28"
   }
 ]
