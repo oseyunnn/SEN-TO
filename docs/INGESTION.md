@@ -1,6 +1,8 @@
 # SEN’TO document ingestion (first version)
 
-This is a developer-run, local ingestion step for a deliberately small corpus. It does not crawl the web, accept uploads, create embeddings, create a vector database, retrieve passages for chat, or call an LLM. Ingested source passages remain untrusted reference text.
+This is a developer-run, local ingestion step for a deliberately small corpus. The original-record importer and the senator-record importer process only developer-curated local files. They do not crawl the web or accept uploads. Embeddings, vector storage, retrieval, and LLM generation are separate pipeline stages. Ingested source passages remain untrusted reference text.
+
+For the one-file-per-senator Markdown layout, including the exact section list and claim-level References format, see [Senator Markdown record format](SENATOR_RECORD_FORMAT.md). Run `python tools/ingest_senator_records.py` to create `data/corpus/processed/senator_chunks.jsonl`; run `python tools/ingest_documents.py` for the original-document manifest flow below.
 
 ## Where to find records
 

@@ -22,7 +22,7 @@ In the provided development environment, `.venv` uses the already installed Stre
 ## Features
 
 - Searchable reference directory, reusable profiles, configurable suggested questions, and independent chat histories per senator.
-- Developer-run ingestion of curated PDF, HTML, and Markdown records into normalized, provenance-preserving chunks. Ingestion does not fetch URLs, embed text, or connect a vector database.
+- Developer-run ingestion of curated PDF, HTML, Markdown source documents, and sectioned per-senator Markdown records into provenance-preserving chunks. Ingestion does not fetch URLs.
 - Two- or three-person comparisons with distinct selections, eight consistent categories, the same comparison period, and clear missing-data states.
 - Screenshot-derived colors, pill navigation, rounded white panels, profile portraits, chat bubbles, and responsive CSS. Mobile users can collapse the directory using “Browse senators/topics”.
 
@@ -46,14 +46,14 @@ frontend/components/         navigation, directory, profiles, bubbles, sources
 frontend/pages/              chat and comparison
 frontend/styles/custom.css   reference-based desktop and responsive styling
 backend/                     Streamlit-independent domain services and policies
-ai/                          ingestion plus legacy, inactive simulation modules
+ai/                          source and senator-record ingestion plus RAG interfaces
 database/                    SQLite schema, connection, one-time initialization
 data/                        JSON directory, guides, styles, suggested questions
 tests/                       service, policy, persistence, and Streamlit UI tests
 tools/seed_data.py            regenerate bundled JSON demonstration fixtures
 ```
 
-`ai/ingestion.py` validates a local manifest, extracts selectable text from PDF or local HTML files, normalizes Unicode and whitespace, and emits deterministic JSONL chunks carrying source provenance, page/section locators, content checksums, and processing versions. See [docs/INGESTION.md](docs/INGESTION.md). The importer only processes developer-curated files and does not crawl or fetch web pages. Query retrieval, embeddings/vector storage, LLM generation, and evidence validation remain future work.
+`ai/ingestion.py` validates a local manifest, extracts selectable text from PDF or local HTML files, normalizes Unicode and whitespace, and emits deterministic JSONL chunks carrying source provenance, page/section locators, content checksums, and processing versions. `ai/senator_markdown.py` parses the fixed senator section format and binds inline reference IDs to verified bibliography metadata. See [docs/INGESTION.md](docs/INGESTION.md) and [docs/SENATOR_RECORD_FORMAT.md](docs/SENATOR_RECORD_FORMAT.md). Both importers only process developer-curated local files and do not crawl or fetch web pages. Query retrieval, embeddings/vector storage, LLM generation, and evidence validation remain future work.
 
 See [docs/RAG_PROGRESS.md](docs/RAG_PROGRESS.md) for a dated summary of completed RAG groundwork and remaining work.
 

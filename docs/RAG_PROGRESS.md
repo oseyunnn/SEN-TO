@@ -1,6 +1,6 @@
 # SEN’TO RAG progress
 
-**Status as of 24 November 2026**
+**Status as of 25 November 2026**
 
 ## Completed groundwork
 
@@ -10,10 +10,11 @@
 - Added PDF text extraction and local HTML parsing, text normalization, and deterministic paragraph-aware chunking. Scanned PDFs that have no selectable text are rejected; OCR is not included.
 - Preserved provenance on every generated chunk, including source title and issuing body, URL, dates, period, record type, verification status, page or section locator, original-file SHA-256, and processing versions. Chunk text is marked as untrusted source material.
 - Added atomic JSONL output at `data/corpus/processed/chunks.jsonl` and documentation describing how to curate, ingest, and manually review records.
+- Added a second ingestion path for the fixed 13-section, one-file-per-senator Markdown format. Inline numeric references are resolved against the end bibliography and copied onto each claim chunk; malformed or unverified references stop ingestion. Reference-only sample files are skipped.
 
 ## Current state and limits
 
-The manifest currently contains no records, so there are no ingested or reviewed chunks available to answer questions. The ingestion pipeline prepares source text; it is not query-time retrieval. No real retriever, embeddings, vector store, LLM generator, evidence-grounded validator, or citation renderer is connected to Chat. The old mock retrieval and generation modules remain in the repository as legacy code, but the default active Chat path does not use them.
+The original-document manifest contains no records, and the only senator Markdown file is a skipped reference sample, so there are no ingested or reviewed chunks available to answer questions. The ingestion pipeline prepares source text; it is not query-time retrieval. No real retriever, embeddings, vector store, LLM generator, evidence-grounded validator, or citation renderer is connected to Chat. The old mock retrieval and generation modules remain in the repository as legacy code, but the default active Chat path does not use them.
 
 ## Implementation plan for the remaining RAG
 

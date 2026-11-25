@@ -14,6 +14,7 @@ The next release should be a **limited real project**, not a claim that the enti
 - A Python 3.11+ Streamlit application with Chat and Compare navigation.
 - Seven senator entries in `data/senators.json`, provided as design examples. The data does not establish a current roster, majority/minority affiliation, or verified profile facts.
 - The deterministic mock answer path has been retired from the active Chat UI. `data/mock_documents.json` remains a legacy fixture and is not evidence. There is no source-backed query/retrieval pipeline connected yet.
+- The local ingestion layer parses the fixed 13-section per-senator Markdown format and attaches verified end-of-file references to claim chunks. The reference-only Francis Escudero file is intentionally skipped.
 - Profile, comparison, and source UI that deliberately shows the absence of verified data.
 - No authentication or account creation. There is a guest display-name popover, but it does not create an account. Chat history is held in Streamlit session state.
 - No landing page or 2028 voting call to action.
