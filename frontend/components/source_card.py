@@ -1,3 +1,4 @@
+from html import escape
 import streamlit as st
 
 from ai.validator import is_safe_source_url
@@ -9,38 +10,48 @@ _STATUS_LABELS = {
     "ANSWER NOT VALIDATED": "The generated answer was withheld because it did not pass citation checks.",
     "RAG SERVICE UNAVAILABLE": "Retrieval or generation is unavailable. No generated answer was returned.",
     "NEUTRALITY LIMIT": "This request falls outside SEN’TO’s neutral public-record scope.",
+    "BACKEND CONNECTION PLACEHOLDER": "The frontend is ready to connect to a source-backed chat endpoint. No source lookup was performed.",
 }
 
 
-def sources(response):
+@st.dialog("Follow the original record", width="large")
+def _source_details(response):
     citations = response.get("citations", [])
     label = response.get("label", "")
+    st.caption(_STATUS_LABELS.get(label, "Source and evidence status is shown below."))
+    st.caption("AI explanations are not official statements.")
+    if response.get("retrieval_count", 0):
+        st.caption(f"Retrieved evidence passages: {response['retrieval_count']}")
 
-    with st.popover("▤  Sources & evidence"):
-        st.caption(_STATUS_LABELS.get(label, "Source and evidence status is shown below."))
-        if response.get("retrieval_count", 0):
-            st.caption(f"Retrieved evidence passages: {response['retrieval_count']}")
+    if citations:
+        for index, citation in enumerate(citations):
+            title = escape(str(citation.get("title", "Untitled source")))
+            evidence_id = escape(str(citation.get("evidence_id", f"E{index + 1}")))
+            issuing_body = escape(str(citation.get("issuing_body", "Issuing body unavailable")))
+            source_type = escape(str(citation.get("source_type", "unspecified")))
+            publication_date = escape(str(citation.get("publication_date") or "date unavailable"))
+            retrieved_at = escape(str(citation.get("retrieved_at") or "date unavailable"))
+            relevant_period = escape(str(citation.get("relevant_period") or "not specified"))
+            locator = escape(str(citation.get("locator") or "not specified"))
+            verification_status = escape(str(citation.get("verification_status", "unknown")))
+            url = citation.get("url")
+            if is_safe_source_url(url):
+                link = f'<a href="{escape(url, quote=True)}" target="_blank" rel="noopener noreferrer">Open original document ↗</a>'
+            else:
+                link = '<span class="source-detail-unavailable">No validated source link is available.</span>'
+            st.html(
+                f'<article class="source-detail-card"><h2>{evidence_id} · {title}</h2>'
+                f'<p class="source-detail-meta">{issuing_body} · Publication date {publication_date}</p>'
+                f'<p>Type: {source_type} · Retrieved: {retrieved_at}</p>'
+                f'<p>Period: {relevant_period} · Locator: {locator} · Status: {verification_status}</p>'
+                f'{link}</article>'
+            )
+    else:
+        st.info(response.get("limitation", "No source citations are attached to this response."))
 
-        if citations:
-            for citation in citations:
-                st.markdown(f"**[{citation.get('evidence_id', 'E?')}] {citation.get('title', 'Untitled source')}**")
-                st.write(citation.get("issuing_body", "Issuing body unavailable"))
-                st.caption(
-                    f"Type: {citation.get('source_type', 'unspecified')} · "
-                    f"Published: {citation.get('publication_date') or 'date unavailable'} · "
-                    f"Retrieved: {citation.get('retrieved_at') or 'date unavailable'}"
-                )
-                st.caption(
-                    f"Period: {citation.get('relevant_period') or 'not specified'} · "
-                    f"Locator: {citation.get('locator') or 'not specified'} · "
-                    f"Source status: {citation.get('verification_status', 'unknown')}"
-                )
-                url = citation.get("url")
-                if is_safe_source_url(url):
-                    st.link_button("Open source", url)
-                else:
-                    st.caption("No validated source link is available.")
-        else:
-            st.info(response.get("limitation", "No source citations are attached to this response."))
+    st.caption("Incomplete or conflicting evidence should remain visibly qualified.")
 
-        st.caption("SEN’TO summaries are generated explanations, not official Senate statements.")
+
+def sources(response):
+    if st.button("▤  Sources & evidence"):
+        _source_details(response)

@@ -1,6 +1,6 @@
 # SEN’TO — Kilalanin ang Senador Mo!
 
-A local educational civic prototype built with Python and Streamlit. It has Chat and Compare pages. Chat uses a source-grounded RAG pipeline over reviewed local records, with citation checks and explicit abstention when evidence is missing. The Community page has been removed.
+A local educational civic prototype built with Python and Streamlit. It has Home, Chat, and Compare pages. This frontend-only pass uses explicit Chat and Compare adapter placeholders; it does not call the existing chat or comparison services. The Community page has been removed.
 
 ## Run locally
 
@@ -21,17 +21,15 @@ In the provided development environment, `.venv` uses the already installed Stre
 
 ## Features
 
-- Searchable reference directory, reusable profiles, configurable suggested questions, and independent chat histories per senator.
+- Landing page, searchable reference directory, reusable profiles, configurable suggested questions, and independent chat histories per senator.
 - Developer-run ingestion of curated PDF, HTML, Markdown source documents, and sectioned per-senator Markdown records into provenance-preserving chunks. Ingestion does not fetch URLs.
-- Local Chroma vector indexing with Ollama embeddings and a configurable Ollama generator. An optional OpenAI Responses adapter targets GPT-6 Luna; changing providers does not change ingestion, retrieval, or citation formatting.
+- Existing local Chroma vector indexing, Ollama embeddings, generator adapters, and citation checks remain separate from the frontend; the UI adapters are ready to connect when endpoints are defined.
 - Two- or three-person comparisons with distinct selections, eight consistent categories, the same comparison period, and clear missing-data states.
-- Screenshot-derived colors, pill navigation, rounded white panels, profile portraits, chat bubbles, and responsive CSS. Mobile users can collapse the directory using “Browse senators/topics”.
+- Screenshot-derived colors, pill navigation, rounded white panels, profile portraits, chat bubbles, and responsive CSS.
 
 ## Data and limitations
 
-The current corpus contains no reviewed records, so the Chat UI reports no evidence for factual questions. The RAG pipeline, local index, provider adapters, citation checks, and Streamlit source display are connected, but useful answers require adding and reviewing source documents. The old demonstration documents are not used by the active Chat UI. The seven names are directory examples supplied in the designs, not a verified current roster or Minority Bloc list. Senate and bloc membership remain unverified. Missing data does not imply inactivity or lack of accomplishments.
-
-The seven names are directory examples supplied in the designs, not a verified current roster or Minority Bloc list. The displayed count reflects the actual local directory rather than the design’s illustrative “24”. Senate and Minority Bloc membership remain unverified. All profile and comparison facts are unavailable until records are collected. Missing information does not imply inactivity or a lack of accomplishments.
+The current corpus contains no reviewed records. The Chat frontend currently returns a connection placeholder and does not query the existing RAG pipeline. The RAG implementation remains in the repository, but it must be connected through the frontend adapter before the UI can return source-backed answers. The old demonstration documents are not used by the active Chat UI. The directory contains 24 names listed in the Philippine Senate's official 20th Congress group photo release dated 28 July 2025 ([source](https://legacy.senate.gov.ph/photo_release/2025/0728_13.asp)); this is a dated roster reference, not a live membership check. The first three supplied mockup portraits remain illustrative; the other senators use placeholders. Profile facts, legislative records, and Minority Bloc membership remain unverified. Missing information does not imply inactivity or a lack of accomplishments.
 
 The existing directory entries remain design examples, not a verified roster. The future assistant should speak about senators in third person and preserve source attribution and uncertainty.
 
@@ -44,7 +42,8 @@ The former Community storage/services are retained as unused backend code; exist
 ```text
 app.py                       application entry point and session defaults
 frontend/components/         navigation, directory, profiles, bubbles, sources
-frontend/pages/              chat and comparison
+frontend/pages/              landing, chat, and comparison
+frontend/api.py              frontend service adapter placeholders
 frontend/styles/custom.css   reference-based desktop and responsive styling
 backend/                     Streamlit-independent domain services and policies
 ai/                          source and senator-record ingestion plus RAG interfaces
@@ -81,4 +80,4 @@ The optional `tools/browser_check.cjs` requires Playwright (not an application d
 
 ## Design mapping
 
-The reference’s top pills map to a styled native navigation radio; senator cards to native buttons with portrait HTML; welcome prompts to buttons; conversation bubbles/input to `st.chat_message` / `st.chat_input`; source information and profiles to popovers; the navbar exposes only Chat and Compare. Comparison uses native senator selectboxes and an HTML grid with working section anchors inside its scroll region. Open the congressional-period control to switch between two and three senators. Desktop panel dimensions are matched against the supplied 1440 × 960 designs; smaller screens use stacked layouts. The screenshot supplies appearance; the project specification supplies behavior. No live Figma access is needed because all four reference images were provided.
+The landing page uses native Streamlit buttons for navigation. Chat and Compare navigation use a styled radio; senator cards use native buttons with portrait HTML; welcome prompts use buttons; the conversation input uses `st.chat_input`; source information and profiles use popovers. The pages use frontend adapter seams in `frontend/api.py` for the directory, Chat, and Compare data. Comparison uses native senator selectboxes and an HTML grid with section anchors. Open the congressional-period control to switch between two and three senators. Smaller screens use stacked layouts. The supplied screenshots guide the appearance; backend and evidence work remain outside this frontend implementation.
