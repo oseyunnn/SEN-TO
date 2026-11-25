@@ -9,7 +9,20 @@ from ai.generation import GenerationError
 from ai.intent_classifier import classify
 from ai.validator import EvidenceValidator, format_citations, is_safe_source_url
 from ai.vector_store import VectorStoreError
-from backend.policies import NEUTRAL_RESPONSE, policy_violation
+from backend.security import (
+    bulk_retrieval_refusal,
+    bulk_retrieval_limitation,
+    internal_prompt_refusal,
+    internal_prompt_limitation,
+    localized_text,
+    normalize_question,
+    no_evidence_limitation,
+    no_evidence_response,
+    requests_bulk_retrieval,
+    requests_internal_prompt,
+    service_unavailable_response,
+)
+from backend.policies import neutral_response, policy_violation
 
 
 LABEL = "SOURCE-GROUNDED AI SUMMARY"
@@ -22,6 +35,10 @@ NO_EVIDENCE = (
     "That does not establish that no public record exists."
 )
 SERVICE_UNAVAILABLE = "The source-backed answer service is temporarily unavailable. No answer was generated."
+MAX_RETRIEVED_CHUNKS = 5
+MAX_EVIDENCE_CHARS = 1200
+MAX_TOTAL_EVIDENCE_CHARS = 4500
+MAX_ANSWER_CHARS = 5000
 
 
 class Retriever(Protocol):
@@ -70,18 +87,36 @@ class RAGPipeline:
         self.retriever = retriever
         self.generator = generator
         self.validator = validator or EvidenceValidator()
-        self.top_k = max(1, int(top_k))
+        self.top_k = min(MAX_RETRIEVED_CHUNKS, max(1, int(top_k)))
 
     def run(self, query: str, senator: dict, style: dict, relevant_period: str | None = None) -> dict:
-        if not isinstance(query, str) or not query.strip() or len(query) > 4000:
-            raise ValueError("Enter a question between 1 and 4,000 characters.")
-        query = query.strip()
+        query = normalize_question(query)
         topic = classify(query)
+        if requests_internal_prompt(query):
+            return self._response(
+                answer=internal_prompt_refusal(query),
+                label="SECURITY LIMIT",
+                limitation=internal_prompt_limitation(query),
+                topic=topic,
+                validation={"status": "POLICY_LIMIT", "verified": False, "citation_ids": []},
+            )
+        if requests_bulk_retrieval(query):
+            return self._response(
+                answer=bulk_retrieval_refusal(query),
+                label="SECURITY LIMIT",
+                limitation=bulk_retrieval_limitation(query),
+                topic=topic,
+                validation={"status": "POLICY_LIMIT", "verified": False, "citation_ids": []},
+            )
         if policy_violation(query):
             return self._response(
-                answer=NEUTRAL_RESPONSE,
+                answer=neutral_response(query),
                 label="NEUTRALITY LIMIT",
-                limitation="SEN’TO does not provide political endorsements, rankings, or unsupported accusations.",
+                limitation=localized_text(
+                    query,
+                    "SEN’TO does not provide political endorsements, rankings, or unsupported accusations.",
+                    "Hindi nagbibigay ang SEN’TO ng pag-eendorso, pagraranggo, o hindi suportadong paratang.",
+                ),
                 topic=topic,
                 validation={"status": "POLICY_LIMIT", "verified": False, "citation_ids": []},
             )
@@ -94,10 +129,11 @@ class RAGPipeline:
                 relevant_period=relevant_period,
             )
         except (EmbeddingError, VectorStoreError, GenerationError):
-            return self._unavailable(topic)
+            return self._unavailable(topic, query)
 
         context = []
         seen_chunks = set()
+        evidence_chars = 0
         for document in retrieved:
             if not isinstance(document, dict) or not _belongs_to_senator(document, senator["id"]):
                 continue
@@ -106,33 +142,73 @@ class RAGPipeline:
             chunk_id = document.get("chunk_id")
             if not isinstance(chunk_id, str) or not chunk_id or chunk_id in seen_chunks:
                 continue
+            remaining = MAX_TOTAL_EVIDENCE_CHARS - evidence_chars
+            if remaining <= 0:
+                break
+            bounded_text = document["text"][:min(MAX_EVIDENCE_CHARS, remaining)]
+            if not bounded_text.strip():
+                continue
             seen_chunks.add(chunk_id)
-            context.append({**document, "evidence_id": f"E{len(context) + 1}"})
+            sources = []
+            for source in document["citation_sources"][:2]:
+                bounded_source = dict(source)
+                for key in ("title", "issuing_body", "source_type", "relevant_period", "locator"):
+                    if isinstance(bounded_source.get(key), str):
+                        bounded_source[key] = bounded_source[key][:240]
+                sources.append(bounded_source)
+            context.append({
+                **document,
+                "text": bounded_text,
+                "citation_sources": sources,
+                "section": str(document.get("section", "Public record"))[:240],
+                "evidence_id": f"E{len(context) + 1}",
+            })
+            evidence_chars += len(bounded_text)
             if len(context) >= self.top_k:
                 break
 
         if not context:
             return self._response(
-                answer=NO_EVIDENCE,
+                answer=no_evidence_response(query, NO_EVIDENCE),
                 label="NO REVIEWED EVIDENCE",
-                limitation="The current corpus has no reviewed passage that supports an answer to this question.",
+                limitation=no_evidence_limitation(
+                    query,
+                    "The current corpus has no reviewed passage that supports an answer to this question.",
+                ),
                 topic=topic,
                 validation={"status": "INSUFFICIENT_EVIDENCE", "verified": False, "citation_ids": []},
             )
 
         try:
             answer = self.generator.generate(query, senator, context, style)
+            if not isinstance(answer, str) or len(answer) > MAX_ANSWER_CHARS:
+                return self._response(
+                    answer=no_evidence_response(query, NO_EVIDENCE),
+                    label="ANSWER NOT VALIDATED",
+                    limitation=localized_text(
+                        query,
+                        "The generated answer exceeded the response limit and was withheld.",
+                        "Lumampas sa itinakdang haba ang sagot at hindi ito ipinakita.",
+                    ),
+                    topic=topic,
+                    validation={"status": "OUTPUT_LIMIT", "verified": False, "citation_ids": []},
+                    retrieval_count=len(context),
+                )
             validation = self.validator.validate(answer, context)
         except (EmbeddingError, VectorStoreError, GenerationError):
-            return self._unavailable(topic)
+            return self._unavailable(topic, query)
         except Exception:
-            return self._unavailable(topic)
+            return self._unavailable(topic, query)
 
         if validation.get("status") != "CITATIONS_VALIDATED":
             return self._response(
-                answer=NO_EVIDENCE,
+                answer=no_evidence_response(query, NO_EVIDENCE),
                 label="ANSWER NOT VALIDATED",
-                limitation="The generated answer did not pass citation checks and has been withheld.",
+                limitation=localized_text(
+                    query,
+                    "The generated answer did not pass citation checks and has been withheld.",
+                    "Hindi ipinakita ang sagot dahil hindi ito pumasa sa pagsusuri ng mga citation.",
+                ),
                 topic=topic,
                 validation=validation,
                 retrieval_count=len(context),
@@ -141,9 +217,13 @@ class RAGPipeline:
         citations = format_citations(context, validation.get("citation_ids", []))
         if not citations:
             return self._response(
-                answer=NO_EVIDENCE,
+                answer=no_evidence_response(query, NO_EVIDENCE),
                 label="ANSWER NOT VALIDATED",
-                limitation="No safe, verified source link could be attached to the generated answer.",
+                limitation=localized_text(
+                    query,
+                    "No safe, verified source link could be attached to the generated answer.",
+                    "Walang ligtas at beripikadong source link na maiuugnay sa nabuong sagot.",
+                ),
                 topic=topic,
                 validation={"status": "INVALID_SOURCE", "verified": False, "citation_ids": []},
                 retrieval_count=len(context),
@@ -151,7 +231,11 @@ class RAGPipeline:
         return self._response(
             answer=answer,
             label=LABEL,
-            limitation=LIMITATION,
+            limitation=localized_text(
+                query,
+                LIMITATION,
+                "Buod ito ng nasuring mga rekord at hindi opisyal na pahayag ng Senado. Suriin ang citation at locator; maaaring hindi kumpleto ang dataset.",
+            ),
             topic=topic,
             validation=validation,
             citations=citations,
@@ -179,11 +263,15 @@ class RAGPipeline:
         }
 
     @classmethod
-    def _unavailable(cls, topic: str) -> dict:
+    def _unavailable(cls, topic: str, query: str) -> dict:
         return cls._response(
-            answer=SERVICE_UNAVAILABLE,
+            answer=service_unavailable_response(query, SERVICE_UNAVAILABLE),
             label="RAG SERVICE UNAVAILABLE",
-            limitation="Check the configured local model and vector index, then try again.",
+            limitation=localized_text(
+                query,
+                "Check the configured local model and vector index, then try again.",
+                "Suriin ang naka-configure na local model at vector index, saka subukan ulit.",
+            ),
             topic=topic,
             validation={"status": "SERVICE_UNAVAILABLE", "verified": False, "citation_ids": []},
         )

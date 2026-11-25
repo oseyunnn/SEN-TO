@@ -1,5 +1,17 @@
 from html import escape
 import streamlit as st
+from backend.security import (
+    MAX_SESSION_REQUESTS,
+    SESSION_REQUEST_WINDOW_SECONDS,
+    allow_session_request,
+    bulk_retrieval_refusal,
+    bulk_retrieval_limitation,
+    internal_prompt_refusal,
+    internal_prompt_limitation,
+    normalize_question,
+    requests_bulk_retrieval,
+    requests_internal_prompt,
+)
 from frontend.api import send_chat_message
 from frontend.components.senator_card import avatar, profile
 from frontend.components.chat_bubble import chat_bubble
@@ -7,7 +19,7 @@ from frontend.components.chat_bubble import chat_bubble
 
 @st.dialog("Dataset & profile", width="large")
 def _dataset_profile(senator):
-    st.write("The chat field is ready for source-backed search. When connected, requests will be scoped to the selected directory entry. A missing result will not prove that no public record exists.")
+    st.write("Chat searches reviewed, indexed sources for the selected directory entry. A missing result will not prove that no public record exists.")
     st.caption("The directory names come from a dated official 20th Congress roster; profile facts and affiliations are unverified.")
     profile(senator)
 
@@ -29,7 +41,7 @@ def render(service):
         submitted = None
         with st.container(key="chat_content"):
             if not history:
-                st.html(f'<div class="welcome">{avatar(senator,"hero")}<div class="tricolor"><i></i><i></i><i></i></div><h1>Kilalanin ang Senador Mo!</h1><p>Ask questions and explore the public record <br>of {escape(senator["name"])}.</p><small>When connected, SEN’TO will summarize reviewed sources. It does not speak for a senator, and its records may be incomplete.</small></div>')
+                st.html(f'<div class="welcome">{avatar(senator,"hero")}<div class="tricolor"><i></i><i></i><i></i></div><h1>Kilalanin ang Senador Mo!</h1><p>Ask questions and explore the public record <br>of {escape(senator["name"])}.</p><small>SEN’TO summarizes reviewed sources. It does not speak for a senator, and its records may be incomplete.</small></div>')
                 with st.container(key="suggestions"):
                     questions = service.suggestions(senator["id"])
                     labels = ["What bills has this senator authored?", "What committees does this senator serve on?", "What are this senator’s documented positions?", "Explore this senator’s legislative contributions"]
@@ -52,8 +64,38 @@ def render(service):
                 _dataset_profile(senator)
         st.html('<p class="fine-print">Unsupported questions receive a clear limitation. Every returned citation links to source metadata and a locator when available.</p>')
         if submitted or prompt:
-            question = submitted or prompt
-            with st.spinner("Preparing your question…"):
-                result = send_chat_message(senator["id"], question)
-            history.extend([{"role": "user", "content": question}, {"role": "assistant", "response": result}])
-            st.rerun()
+            try:
+                question = normalize_question(submitted or prompt)
+            except ValueError as exc:
+                st.warning(str(exc))
+            else:
+                if not allow_session_request(st.session_state):
+                    st.warning(
+                        f"Please wait before sending another question. The limit is "
+                        f"{MAX_SESSION_REQUESTS} questions per {int(SESSION_REQUEST_WINDOW_SECONDS)} seconds."
+                    )
+                else:
+                    if requests_internal_prompt(question):
+                        result = {
+                            "label": "SECURITY LIMIT",
+                            "topic": "sources",
+                            "answer": internal_prompt_refusal(question),
+                            "citations": [],
+                            "retrieval_count": 0,
+                            "limitation": internal_prompt_limitation(question),
+                        }
+                    elif requests_bulk_retrieval(question):
+                        result = {
+                            "label": "SECURITY LIMIT",
+                            "topic": "sources",
+                            "answer": bulk_retrieval_refusal(question),
+                            "citations": [],
+                            "retrieval_count": 0,
+                            "limitation": bulk_retrieval_limitation(question),
+                        }
+                    else:
+                        with st.spinner("Preparing your question…"):
+                            result = send_chat_message(senator["id"], question)
+                    history.extend([{"role": "user", "content": question}, {"role": "assistant", "response": result}])
+                    del history[:-40]
+                    st.rerun()
