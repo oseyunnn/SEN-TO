@@ -135,9 +135,12 @@ class ChromaVectorStore:
         )
         if not math.isfinite(self.max_cosine_distance) or not 0 <= self.max_cosine_distance <= 2:
             raise ValueError("SENTO_MAX_COSINE_DISTANCE must be between 0 and 2.")
-        model_token = re.sub(r"[^a-zA-Z0-9_]+", "_", embedder.model_name).strip("_").lower()[:28] or "model"
-        model_hash = hashlib.sha256(embedder.model_name.encode("utf-8")).hexdigest()[:8]
-        self.collection_name = collection_name or f"sento_v1_{model_token}_{model_hash}"
+        provider_name = getattr(embedder, "provider_name", "custom")
+        provider_token = re.sub(r"[^a-zA-Z0-9_]+", "_", provider_name).strip("_").lower()[:8] or "provider"
+        model_token = re.sub(r"[^a-zA-Z0-9_]+", "_", embedder.model_name).strip("_").lower()[:20] or "model"
+        model_hash = hashlib.sha256(f"{provider_name}:{embedder.model_name}".encode("utf-8")).hexdigest()[:8]
+        self.embedding_provider = provider_name
+        self.collection_name = collection_name or f"sento_v1_{provider_token}_{model_token}_{model_hash}"
         if collection is not None:
             self.collection = collection
             self.client = None
@@ -154,7 +157,7 @@ class ChromaVectorStore:
                 metadata={
                     "hnsw:space": "cosine",
                     "schema_version": "1",
-                    "embedding_provider": getattr(embedder, "provider_name", "custom"),
+                    "embedding_provider": provider_name,
                     "embedding_model": embedder.model_name,
                 },
                 embedding_function=None,
@@ -163,7 +166,10 @@ class ChromaVectorStore:
             raise VectorStoreError(f"Could not open the local Chroma index: {exc}") from exc
         collection_metadata = getattr(self.collection, "metadata", None) or {}
         stored_model = collection_metadata.get("embedding_model")
-        if stored_model and stored_model != embedder.model_name:
+        stored_provider = collection_metadata.get("embedding_provider")
+        if (stored_model and stored_model != embedder.model_name) or (
+            stored_provider and stored_provider != provider_name
+        ):
             raise VectorStoreError(
                 "The saved Chroma collection uses a different embedding model. Choose a new collection name or rebuild the index."
             )

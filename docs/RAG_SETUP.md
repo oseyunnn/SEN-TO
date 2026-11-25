@@ -21,6 +21,23 @@ SENTO_MAX_COSINE_DISTANCE=0.65
 
 The Ollama embedding model name is part of the Chroma collection name. Changing it creates a separate collection rather than mixing vectors from different models. Tune the cosine-distance cutoff using reviewed questions; an empty retrieval is safer than passing weak matches to the generator. See the [Ollama embedding API](https://docs.ollama.com/api/embed) and [Chroma persistent client](https://docs.trychroma.com/docs/run-chroma/clients) documentation.
 
+## Configure answer generation
+
+Generation defaults to the local Ollama chat endpoint. Install the configured model with `ollama pull gemma4`. The provider is replaceable independently from the embedder and vector store.
+
+To select OpenAI GPT-6 Luna, set these process environment variables:
+
+```text
+SENTO_GENERATOR_PROVIDER=openai
+OPENAI_API_KEY=<your key, supplied through your local secrets manager>
+SENTO_OPENAI_MODEL=gpt-6-luna
+SENTO_OPENAI_REASONING_EFFORT=low
+```
+
+The OpenAI adapter uses the Responses API model ID `gpt-6-luna`. OpenAI describes GPT-6 Luna as a focused, high-volume text-generation model; check current [model documentation](https://developers.openai.com/api/docs/models/gpt-6-luna) and account availability before deployment. The model generates answers; Ollama remains the separate embedding provider unless a future embedding adapter is configured.
+
+When OpenAI is selected, SEN’TO sends the current question, selected senator name, retrieved passage text, and passage citation metadata to the OpenAI API. It does not send the rest of the session history. The request sets `store=false`, but that does not disable all API retention; review [OpenAI API data controls](https://developers.openai.com/api/docs/guides/your-data) and the organization’s configured controls before using real records. Do not commit API keys. `.env.example` contains variable names only, and the app does not load `.env` automatically.
+
 ## Build the index
 
 After adding and reviewing source records, create normalized chunks and build the local index:

@@ -13,7 +13,8 @@ def policy_violation(query):
     patterns = (
         r"\b(vote for|endorse|best senator|worst senator|rank senators|who should .*vote)\b",
         r"\b(who will win|predict .*election|win the election)\b",
-        r"\b(corrupt|criminal|thief|stole|guilty|magnanakaw|kurakot)\b",
+        r"\b(prove|show|confirm|establish|declare)\b.{0,80}\b(corrupt|criminal|thief|stole|guilty|magnanakaw|kurakot)\b",
+        r"\b(is|are|was|were)\s+(?:he|she|they|this senator|that senator|senator [a-z]+|[a-z]+)\s+(?:a\s+)?(?:corrupt|criminal|thief|guilty|magnanakaw|kurakot)\b",
         r"\b(pretend (to be|you are)|impersonate|as senator|speak as)\b",
         r"\b(sinong iboboto|sino.*ibo(?:bo)?to|pinakamagaling.*senador)\b",
     )
