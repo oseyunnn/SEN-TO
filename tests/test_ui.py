@@ -9,9 +9,14 @@ def test_navigation_chat_and_comparison(tmp_path, monkeypatch):
     at = AppTest.from_file(str(APP)).run()
     assert not at.exception
     assert at.radio(key="page").options == ["CHAT", "COMPARE"]
+    assert any("No reviewed passages are indexed yet" in element.value for element in at.info)
     at.button(key="suggest_risa-hontiveros_0").click().run()
     assert not at.exception
     assert len(at.session_state["histories"]["risa-hontiveros"]) == 2
+    answer = at.session_state["histories"]["risa-hontiveros"][1]["response"]
+    assert answer["label"] == "NO REVIEWED EVIDENCE"
+    assert answer["citations"] == []
+    assert any("No suitable reviewed passage was found" in element.value for element in at.get("caption"))
     at.button(key="select_senator_idfrancis-pangilinan").click().run()
     assert at.session_state["senator_id"] == "francis-pangilinan"
     assert at.session_state["histories"]["francis-pangilinan"] == []

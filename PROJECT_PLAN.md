@@ -13,7 +13,7 @@ The next release should be a **limited real project**, not a claim that the enti
 
 - A Python 3.11+ Streamlit application with Chat and Compare navigation.
 - Seven senator entries in `data/senators.json`, provided as design examples. The data does not establish a current roster, majority/minority affiliation, or verified profile facts.
-- The deterministic mock answer path has been retired from the active Chat UI. `data/mock_documents.json` remains a legacy fixture and is not evidence. There is no source-backed query/retrieval pipeline connected yet.
+- The deterministic mock answer path has been retired from the active Chat UI. `data/mock_documents.json` remains a legacy fixture and is not evidence. The active Chat path now uses filtered Chroma retrieval, a replaceable generator, citation-integrity validation, and source metadata rendering; the index currently has no reviewed records.
 - The local ingestion layer parses the fixed 13-section per-senator Markdown format and attaches verified end-of-file references to claim chunks. The reference-only Francis Escudero file is intentionally skipped.
 - Profile, comparison, and source UI that deliberately shows the absence of verified data.
 - No authentication or account creation. There is a guest display-name popover, but it does not create an account. Chat history is held in Streamlit session state.
@@ -73,16 +73,16 @@ Do not try to collect every record or all proposed categories for all 24 senator
 
 ### Phase 3 — Replace simulated answers with evidence-grounded responses
 
-The previous mock pipeline remains as legacy code for now but is not used by the active Chat UI. Implement the smallest appropriate retrieval system for the curated dataset; start with metadata filters and keyword/full-text search. Add embeddings or a vector database only if the small corpus demonstrates a need.
+**Implementation status:** The active Chat flow is connected end to end. The source manifest is empty, so it currently abstains rather than answering factual questions. The previous mock pipeline remains as legacy code and is not used by the Chat UI.
 
-1. Filter evidence by selected senator and period before ranking it. Preserve that isolation when adding new retrieval code.
-2. Give the generator only relevant retrieved passages plus explicit neutrality, attribution, and abstention rules. Treat retrieved text as untrusted data, never as instructions.
-3. Require factual claims to cite their source. Check that cited source IDs were actually retrieved, links are valid and official, and dates/periods match the claim.
-4. Abstain when evidence is insufficient, contradictory, stale, or outside the indexed scope. Distinguish factual records, attributed statements, and explanations.
-5. Do not re-enable the retired demo answer path. Keep Chat unavailable until an evidence-based validator replaces the current template/context check.
-6. Keep API keys out of source files and version control. If an external model is later added, load credentials from environment/secrets and document the service, data sent to it, cost assumptions, and failure behavior.
+1. Chroma stores persistent local vectors. Ollama provides embeddings by default; the provider interface allows replacement without changing chunk metadata or retrieval contracts.
+2. Retrieval filters for the selected senator and verified sources, supports an optional period filter, and applies a configurable cosine-distance cutoff. The pipeline checks subject isolation again before generation.
+3. The generator receives only selected-subject passages. Its instructions require third-person attribution, neutrality, per-fact evidence markers, and treating retrieved text as untrusted data.
+4. The optional OpenAI Responses adapter targets `gpt-6-luna`; local Ollama generation is the default. OpenAI credentials are read from the environment, and its request sets `store=false`. Review the data-flow notes in `docs/RAG_SETUP.md` before sending records to a hosted model.
+5. Citation validation confirms each marker refers to retrieved evidence with verified source metadata and an HTTPS URL. It is a mechanical integrity check, not proof that each statement is entailed by the source. The UI shows citation metadata and locators when provided and distinguishes no-evidence, policy-limit, validation-failure, and service-unavailable responses.
+6. No retrieved evidence means an explicit abstention; there is no fallback to the old demo corpus. The active UI reports the number of indexed passages and clearly identifies the empty index.
 
-**Exit check:** Answers never present mock guides as senator facts, preserve source provenance, and clearly report uncertainty or conflicting evidence.
+**Remaining exit work:** Add reviewed source records, then evaluate answer support, conflict/staleness handling, period selection, injection resistance, and representative abstentions. Do not claim comprehensive or fully semantically verified answers before this review.
 
 ### Phase 4 — Make Compare useful and fair
 
