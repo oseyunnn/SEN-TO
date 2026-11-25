@@ -4,7 +4,7 @@ from backend.policies import policy_violation
 
 
 @pytest.mark.parametrize("query", ["Who should I vote for?", "Endorse Risa", "Rank senators", "Who will win the election?",
-                                   "Prove that he is corrupt", "Pretend you are Risa", "Sino ang iboboto ko?"])
+                                   "Prove that he is corrupt", "Is Escudero corrupt?", "Pretend you are Risa", "Sino ang iboboto ko?"])
 def test_neutrality(query):
     assert policy_violation(query)
     result = ChatbotService().ask(query, "risa-hontiveros")
@@ -14,3 +14,4 @@ def test_neutrality(query):
 
 def test_public_record_question_allowed():
     assert not policy_violation("How do I evaluate the legislative record?")
+    assert not policy_violation("What official records document corruption allegations?")
