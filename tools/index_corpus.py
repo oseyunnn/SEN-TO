@@ -1,4 +1,4 @@
-"""Publish a reviewed cloud release or maintain a local development Chroma index."""
+"""Publish a project-curated Markdown cloud release or maintain a local Chroma index."""
 
 import argparse
 from pathlib import Path
@@ -41,13 +41,12 @@ def main() -> int:
         config = RAGConfig.load(require_credentials=not args.dry_run)
         chunks = read_jsonl(chunk_paths)
         if not chunks:
-            raise VectorStoreError("No chunk records found. Run an ingestion command after adding reviewed sources.")
+            raise VectorStoreError("No chunk records found. Run the senator Markdown importer first.")
         if args.release_manifest:
             require(args.dry_run or args.apply, 'Choose --dry-run or --apply for a release.')
             require(len(chunk_paths) == 1, 'A release requires exactly one chunk file.')
             manifest = json.loads(args.release_manifest.read_text(encoding='utf-8'))
             require(checksum(chunk_paths[0]) == manifest.get('chunks_sha256'), 'Release chunk checksum mismatch.')
-            require(checksum(args.release_manifest.parent / 'review.json') == manifest.get('review_sha256'), 'Release review checksum mismatch.')
             rows = validate_package(chunks, manifest, config)
             active = os.environ.get('SENTO_ACTIVE_COLLECTION')
             require(active and active != config.collection, 'Explicitly identify the active collection, or NONE; destination must differ.')
@@ -57,7 +56,7 @@ def main() -> int:
             stats = publish_release(rows, manifest, config)
             print(json.dumps(stats))
             return 0
-        require(config.backend == 'local', 'Cloud indexing requires a reviewed release manifest.')
+        require(config.backend == 'local', 'Cloud indexing requires a Markdown release manifest.')
         require(not args.apply and not args.dry_run, 'Release flags require --release-manifest.')
         store = ChromaVectorStore(embedder=config.embedder(), persist_directory=args.index or config.path,
                                   collection_name=config.collection or None)

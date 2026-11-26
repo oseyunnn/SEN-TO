@@ -1,4 +1,4 @@
-"""Offline review gates and immutable cloud publication helpers."""
+"""Project-curated Markdown release preparation and immutable cloud publication helpers."""
 from collections import Counter
 from datetime import date
 import hashlib
@@ -79,7 +79,8 @@ def prepare_release(chunks, review, source_root):
             require(all(citation.get(k) for k in ('title', 'issuing_body', 'source_url', 'retrieved_at', 'relevant_period', 'locator')), 'Incomplete source provenance.')
             require(citation.get('verification_status') == 'verified' and is_safe_source_url(citation['source_url']), 'Unsafe or unverified source.')
             require(any(s.get('source_url') == citation['source_url'] and s.get('locator') == citation['locator'] for s in checked), 'Human review must cover every original source and exact locator.')
-        record = {**original, 'congress_id': decision['congress_id'], 'reviewed_at': decision['reviewed_at'], 'release_id': review['release_id']}
+        record = {**original, 'congress_id': decision['congress_id'], 'reviewed_at': decision['reviewed_at'],
+                  'release_id': review['release_id'], 'curation_status': 'project_curated'}
         selected.append(record)
         matched.update((subject, original['claim_id']) for subject in associations)
     require(matched == set(by_key), 'Some approved claims are absent from the supplied chunks.')
@@ -89,12 +90,78 @@ def prepare_release(chunks, review, source_root):
     require(len({c['chunk_id'] for c in selected}) == len(selected), 'Duplicate chunks are not allowed.')
     preflight_rows(rows)
     manifest = {'release_id': review['release_id'], 'collection': review['collection'], 'schema_version': '2',
+                'source_format': 'senator_markdown', 'curation_status': 'human_reviewed',
                 'embedding_provider': 'openai', 'embedding_model': 'text-embedding-3-small',
                 'embedding_dimensions': 1536, 'distance_metric': 'cosine', 'reviewed_at': review['reviewed_at'],
                 'subjects': subjects, 'scope_review': scope, 'expected_counts': counts, 'expected_rows': len(rows),
                 'approved_ids': sorted(c['chunk_id'] for c in selected),
                 'source_checksums': {c['source_file']: c['source_sha256'] for c in selected},
                 'importer_versions': sorted({c['extraction_version'] for c in selected})}
+    return selected, manifest
+
+
+def prepare_markdown_release(chunks, release_id, collection, source_root, subjects=None):
+    """Build a package from every section in the project's curated Markdown corpus.
+
+    The source files are treated as the project's chosen corpus. This records
+    provenance and exact input bytes; it does not claim an independent review.
+    """
+    require(release_id and collection, 'Release ID and collection are required.')
+    source_root = Path(source_root)
+    from ai.senator_markdown import ingest_project_curated_markdown
+    current_chunks = ingest_project_curated_markdown(source_root)
+    def fingerprint(records):
+        return {item.get('chunk_id'): json.dumps(item, ensure_ascii=False, sort_keys=True) for item in records}
+    require(fingerprint(chunks) == fingerprint(current_chunks),
+            'Processed chunks are stale or differ from the current Markdown files; rerun the importer.')
+    chunks = current_chunks
+    requested = set(subjects or [])
+    curated_chunks = [c for c in chunks if c.get('curation_status') == 'project_curated']
+    require(curated_chunks, 'No project-curated Markdown chunks are available for this release.')
+    available = {c.get('senator_id') for c in curated_chunks}
+    if requested:
+        require(None not in requested and requested <= available, 'Requested subjects must exist in the Markdown corpus.')
+        curated_chunks = [c for c in curated_chunks if c.get('senator_id') in requested]
+    selected = []
+    source_checksums = {}
+    for original in curated_chunks:
+        require(original.get('source_mime_type') == 'text/markdown', 'Only senator Markdown records may be released.')
+        filename = original.get('source_file', '')
+        require(filename and Path(filename).name == filename and Path(filename).suffix.casefold() in {'.md', '.markdown'},
+                'Release inputs must be Markdown files inside the corpus directory.')
+        source = source_root / filename
+        require(source.is_file() and checksum(source) == original.get('source_sha256'),
+                'A Markdown source changed after ingestion; rebuild the chunks.')
+        citations = original.get('citation_sources', [])
+        require(citations, 'A Markdown chunk must retain citation or profile-locator metadata.')
+        # Preserve source-backed periods as entered. Do not infer a Congress.
+        record = {**original, 'release_id': release_id}
+        selected.append(record)
+        source_checksums[filename] = original['source_sha256']
+    ids = [c.get('chunk_id') for c in selected]
+    require(all(ids) and len(ids) == len(set(ids)), 'Duplicate or missing Markdown chunk IDs.')
+    rows = _prepare_chunks(selected)
+    counts = dict(Counter(r['senator_id'] for r in rows))
+    require(counts and (not requested or set(counts) == requested), 'Selected subjects need Markdown content.')
+    preflight_rows(rows)
+    manifest = {
+        'release_id': release_id,
+        'collection': collection,
+        'schema_version': '2',
+        'source_format': 'senator_markdown',
+        'curation_status': 'project_curated',
+        'prepared_at': date.today().isoformat(),
+        'embedding_provider': 'openai',
+        'embedding_model': 'text-embedding-3-small',
+        'embedding_dimensions': 1536,
+        'distance_metric': 'cosine',
+        'subjects': sorted(counts),
+        'expected_counts': counts,
+        'expected_rows': len(rows),
+        'chunk_ids': sorted(ids),
+        'source_checksums': source_checksums,
+        'importer_versions': sorted({c['extraction_version'] for c in selected}),
+    }
     return selected, manifest
 
 
@@ -110,21 +177,26 @@ def validate_package(chunks, manifest, config):
     require(manifest.get('collection') == config.collection and manifest.get('release_id') == config.release, 'Destination differs from the release manifest.')
     for key, value in config.metadata().items():
         require(manifest.get(key) == value, 'Release embedding/schema identity mismatch.')
-    require(sorted(c.get('chunk_id', '') for c in chunks) == manifest.get('approved_ids'), 'Release allowlist does not match chunks.')
-    require(all(c.get('release_id') == config.release and c.get('congress_id') in {'19', '20', 'historical'} for c in chunks), 'Unreviewed release or period metadata.')
-    require(all(c.get('verification_status') == 'verified' and valid_date(c.get('reviewed_at'))
+    identity_list = manifest.get('chunk_ids') if manifest.get('curation_status') == 'project_curated' else manifest.get('approved_ids')
+    require(sorted(c.get('chunk_id', '') for c in chunks) == identity_list, 'Release allowlist does not match chunks.')
+    require(manifest.get('source_format') == 'senator_markdown'
+            and manifest.get('curation_status') in {'project_curated', 'human_reviewed'},
+            'Unsupported release source or curation status.')
+    require(all(c.get('release_id') == config.release
+                and (not c.get('congress_id') or c.get('congress_id') in {'19', '20', 'historical'})
+                for c in chunks), 'Release identity or normalized period metadata is invalid.')
+    require(all(c.get('curation_status') == 'project_curated'
+                and c.get('source_mime_type') == 'text/markdown'
+                and Path(c.get('source_file', '')).suffix.casefold() in {'.md', '.markdown'}
                 and c.get('source_sha256') == manifest.get('source_checksums', {}).get(c.get('source_file'))
-                for c in chunks), 'Release contains unreviewed or changed source data.')
+                for c in chunks), 'Release contains non-Markdown or changed source data.')
     for chunk in chunks:
-        sources = chunk.get('citation_sources', [])
-        require(sources and all(is_safe_source_url(s.get('source_url')) and s.get('verification_status') == 'verified'
-                    and all(s.get(k) for k in ('title', 'issuing_body', 'retrieved_at', 'relevant_period', 'locator')) for s in sources),
-                'Release source provenance is incomplete.')
+        require(chunk.get('citation_sources'), 'Release chunk has no citation or source-locator metadata.')
     rows = _prepare_chunks(chunks)
     preflight_rows(rows)
     counts = dict(Counter(r['senator_id'] for r in rows))
     require(counts == manifest.get('expected_counts') and len(rows) == manifest.get('expected_rows'), 'Release counts differ from the manifest.')
-    require(set(counts) == set(manifest.get('subjects', [])) and len(counts) == 2, 'Invalid pilot scope.')
+    require(set(counts) == set(manifest.get('subjects', [])) and bool(counts), 'Invalid release subject scope.')
     return rows
 
 
@@ -139,7 +211,9 @@ def publish_release(rows, manifest, config, *, client=None, embedder=None):
     require(active and active != config.collection, 'Set SENTO_ACTIVE_COLLECTION to the serving collection, or NONE for first publication; never overwrite it.')
     from chromadb import Schema, VectorIndexConfig
     metadata = {**config.metadata(), 'coverage_json': json.dumps(manifest['expected_counts'], separators=(',', ':')),
-                'reviewed_at': manifest['reviewed_at'], 'publication_status': 'building'}
+                'source_format': manifest['source_format'], 'curation_status': manifest['curation_status'],
+                'prepared_at': manifest.get('prepared_at', ''),
+                'reviewed_at': manifest.get('reviewed_at', ''), 'publication_status': 'building'}
     require(all(len(str(v).encode()) <= 256 for v in metadata.values()), 'Collection metadata exceeds cloud limits.')
     client = client or config.cloud_client()
     embedder = embedder or config.embedder()
@@ -151,7 +225,7 @@ def publish_release(rows, manifest, config, *, client=None, embedder=None):
                        metadatas=[_metadata_for(r) for r in batch], embeddings=embedder.embed([r['text'] for r in batch]))
     verify_collection(collection, rows)
     collection.modify(metadata={**metadata, 'publication_status': 'ready'})
-    return {'indexed': len(rows), 'collection': config.collection, 'status': 'ready_for_live_review'}
+    return {'indexed': len(rows), 'collection': config.collection, 'status': 'ready_for_runtime_check'}
 
 
 def verify_collection(collection, rows):

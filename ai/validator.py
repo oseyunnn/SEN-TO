@@ -82,19 +82,20 @@ class EvidenceValidator:
         for evidence_id in cited_ids:
             document = by_id[evidence_id]
             sources = document.get("citation_sources")
-            if document.get("verification_status") != "verified" or not isinstance(sources, list) or not sources:
-                return self._result("UNVERIFIED_SOURCE", [], "Retrieved evidence did not have verified source metadata.")
+            project_curated = document.get("curation_status") == "project_curated"
+            if ((document.get("verification_status") != "verified" and not project_curated)
+                    or not isinstance(sources, list) or not sources):
+                return self._result("INVALID_SOURCE", [], "Retrieved evidence did not have source metadata.")
             for source in sources:
-                if (
-                    not isinstance(source, dict)
-                    or source.get("verification_status") != "verified"
+                if not isinstance(source, dict) or (not project_curated and (
+                    source.get("verification_status") != "verified"
                     or not is_safe_source_url(source.get("source_url"))
-                ):
+                )):
                     return self._result("INVALID_SOURCE", [], "A cited source failed provenance or URL checks.")
         return self._result(
             "CITATIONS_VALIDATED",
             cited_ids,
-            "Citation IDs resolve to verified sources retrieved for this answer. This check does not prove semantic claim support.",
+            "Citation IDs resolve to source metadata from retrieved project-curated evidence. This check does not prove semantic claim support.",
         )
 
     @staticmethod

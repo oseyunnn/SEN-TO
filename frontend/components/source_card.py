@@ -7,8 +7,8 @@ from ai.validator import is_safe_source_url
 _STATUS_LABELS = {
     "RAG CONFIGURATION ERROR": "Deployment settings need attention. No model answer was generated.",
     "CHAT SCOPE": "Choose a single senator before asking about their records.",
-    "SOURCE-GROUNDED AI SUMMARY": "Citation links and provenance passed automated checks. Claim-level semantic support has not been independently verified.",
-    "NO REVIEWED EVIDENCE": "No suitable reviewed passage was found. This does not mean no public record exists.",
+    "SOURCE-GROUNDED AI SUMMARY": "Answers use project-curated Markdown notes. Check the cited details; claim support has not been independently verified.",
+    "NO CURATED EVIDENCE": "No suitable passage was found in the curated notes. This does not mean no public record exists.",
     "ANSWER NOT VALIDATED": "The generated answer was withheld because it did not pass citation checks.",
     "RAG SERVICE UNAVAILABLE": "Retrieval or generation is unavailable. No generated answer was returned.",
     "NEUTRALITY LIMIT": "This request falls outside SEN’TO’s neutral public-record scope.",

@@ -837,3 +837,130 @@ def ingest_senator_records(records_dir: Path) -> list[dict]:
             seen_senators.add(senator_id)
             output.extend(chunks)
     return output
+
+
+def parse_project_curated_markdown(path: Path) -> list[dict]:
+    """Chunk every body section in a curated Markdown file, retaining its statuses."""
+    try:
+        raw = path.read_bytes()
+        lines = raw.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise SenatorRecordError(f"Could not read {path.name} as UTF-8: {exc}") from exc
+    if lines:
+        lines[0] = lines[0].lstrip("\ufeff")
+    metadata, body = _read_frontmatter(lines, path)
+    senator_id = _resolve_profile_senator_id(metadata, path)
+    directory = json.loads((Path(__file__).resolve().parents[1] / "data" / "senators.json").read_text(encoding="utf-8"))
+    subject = next((item for item in directory if item.get("id") == senator_id), {})
+    senator_name = str(metadata.get("common_name") or metadata.get("full_name") or subject.get("name") or senator_id)
+    source_sha256 = hashlib.sha256(raw).hexdigest()
+    references = _parse_profile_references(body, path, senator_id)
+    if metadata.get("document_type") != "senator_profile":
+        in_references = False
+        for line in body:
+            heading = re.match(r"^ {0,3}##[ \t]+(.+?)\s*#*\s*$", line)
+            if heading:
+                in_references = heading.group(1).strip() == REFERENCE_HEADING
+            elif in_references and line.strip():
+                try:
+                    reference = _parse_reference_line(line, path)
+                except SenatorRecordError:
+                    continue
+                references[reference.reference_id] = reference.as_dict(senator_id)
+
+    sections: list[tuple[str, list[str]]] = []
+    title = "Profile overview"
+    heading_stack: list[str] = []
+    content: list[str] = []
+    for line in body:
+        heading = re.match(r"^ {0,3}(#{1,6})[ \t]+(.+?)\s*#*\s*$", line)
+        if not heading:
+            content.append(line)
+            continue
+        if any(item.strip() for item in content):
+            sections.append((title, content))
+        level, heading_text = len(heading.group(1)), heading.group(2).strip()
+        if level == 1:
+            heading_stack = [heading_text]
+            title = "Profile overview"
+        else:
+            parent_count = max(0, level - 2)
+            heading_stack = heading_stack[:parent_count] + [heading_text]
+            title = " > ".join(heading_stack)
+        content = []
+    if any(item.strip() for item in content):
+        sections.append((title, content))
+
+    output: list[dict] = []
+    for section, section_lines in sections:
+        section_text = normalize_text("\n".join(section_lines))
+        for part_index, text in enumerate(_chunks(section_text, CHUNK_SIZE, CHUNK_OVERLAP), start=1):
+            reference_ids = list(dict.fromkeys(re.findall(r"\[(SRC-[A-Z0-9-]+|\d+)\]", text)))
+            citations = []
+            for reference_id in reference_ids:
+                source = references.get(reference_id)
+                if source:
+                    citations.append(dict(source))
+                else:
+                    citations.append({
+                        "source_id": f"{senator_id}:ref-{reference_id}", "reference_id": reference_id,
+                        "title": f"Unresolved source {reference_id}", "issuing_body": "Not specified",
+                        "source_type": "other", "source_url": None, "publication_date": None,
+                        "retrieved_at": None, "relevant_period": "Not specified", "locator": None,
+                        "verification_status": "project_curated",
+                    })
+            periods = list(dict.fromkeys(re.findall(r"(?im)^\s*(?:[-*]\s*)?Period:\s*(.+?)\s*$", text)))
+            relevant_period = periods[0] if len(periods) == 1 else "Multiple periods; see passage" if periods else "Not specified"
+            claim_ids = list(dict.fromkeys(re.findall(r"\[(CLM-[A-Z0-9-]+)\]", text)))
+            evidence_statuses = list(dict.fromkeys(re.findall(r"(?im)^\s*(?:[-*]\s*)?Evidence_Status:\s*(\S+)\s*$", text)))
+            congress_values = list(dict.fromkeys(re.findall(
+                r"(?im)^\s*(?:[-*]\s*)?Congress:\s*(19|20)(?:st|th)?(?:\s+Congress)?\b", text)))
+            if not citations:
+                citations.append({
+                    "source_id": f"{senator_id}:markdown:{path.name}:{section}:{part_index}",
+                    "title": f"{senator_name} — {section}",
+                    "issuing_body": "SEN’TO project-curated Markdown notes",
+                    "source_type": "curated_summary", "source_url": None,
+                    "publication_date": None, "retrieved_at": metadata.get("last_updated"),
+                    "relevant_period": relevant_period,
+                    "locator": f"{path.name} > {section} > chunk {part_index}",
+                    "verification_status": "project_curated",
+                })
+            digest = hashlib.sha256(f"{senator_id}\0{path.name}\0{section}\0{part_index}\0{text}".encode("utf-8")).hexdigest()[:20]
+            output.append({
+                "schema_version": "3.0", "document_id": f"senator-record:{senator_id}",
+                "chunk_id": f"{senator_id}:{path.stem}:{digest}", "chunk_index": len(output) + 1,
+                "senator_id": senator_id, "senator_ids": [senator_id], "senator_name": senator_name,
+                "section": section, "title": f"{senator_name} — {section}",
+                "record_type": "senator_markdown_section", "source_type": "curated_summary",
+                "source_ids": [source.get("source_id") for source in citations if source.get("source_id")],
+                "citation_sources": citations, "relevant_period": relevant_period,
+                "congress_id": congress_values[0] if len(congress_values) == 1 else None,
+                "evidence_status": ", ".join(evidence_statuses) if evidence_statuses else "project_curated_note",
+                "evidence_statuses": evidence_statuses, "claim_ids": claim_ids,
+                "verification_status": "project_curated", "curation_status": "project_curated",
+                "locator": f"{path.name} > {section} > chunk {part_index}",
+                "source_file": path.name, "source_mime_type": "text/markdown", "source_sha256": source_sha256,
+                "extraction_version": "project-curated-markdown-1.0",
+                "chunking_version": "section-char-1200-overlap-180-v1",
+                "content_trust": "project_curated_reference_text", "text": text,
+            })
+    return output
+
+
+def ingest_project_curated_markdown(records_dir: Path) -> list[dict]:
+    """Read and chunk every supported Markdown file without evidence-status filtering."""
+    records_dir = Path(records_dir)
+    if not records_dir.exists():
+        return []
+    output = []
+    seen_senators: set[str] = set()
+    for path in sorted([*records_dir.glob("*.md"), *records_dir.glob("*.markdown")]):
+        chunks = parse_project_curated_markdown(path)
+        if chunks:
+            senator_id = chunks[0]["senator_id"]
+            if senator_id in seen_senators:
+                raise SenatorRecordError(f"Duplicate senator_id in {records_dir}: {senator_id}.")
+            seen_senators.add(senator_id)
+            output.extend(chunks)
+    return output

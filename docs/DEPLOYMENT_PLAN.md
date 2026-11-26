@@ -1,5 +1,7 @@
 # SEN’TO deployment plan
 
+> **Superseded for the current school-assignment release:** On 27 November 2026, the owner designated the existing senator Markdown files as the project-curated corpus. The active workflow uses eligible `VERIFIED` Markdown claims, does not use a separate approval register, and does not process PDF/HTML files. See [RAG_SETUP.md](RAG_SETUP.md) and [QDRANT_SETUP.md](QDRANT_SETUP.md) for current steps. The plan below is retained as historical design context.
+
 Prepared 26 November 2026 against repository commit `f9d877a`.
 
 **Recommendation:** Keep one Streamlit app on Streamlit Community Cloud, use one persistent Chroma Cloud database, and call hosted OpenAI APIs for embeddings and generation. Keep one active evidence collection shared by the senator chats, with mandatory senator filters. This preserves the current Python services and Chroma record shape and removes the laptop from the serving path.

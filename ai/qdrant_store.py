@@ -12,7 +12,7 @@ from ai.vector_store import VectorStoreError
 
 
 RELEASE_POINT_ID = str(uuid5(NAMESPACE_URL, 'sento:release:metadata:v1'))
-FILTER_FIELDS = ('record_kind', 'senator_id', 'verification_status', 'congress_id', 'relevant_period', 'release_id')
+FILTER_FIELDS = ('record_kind', 'senator_id', 'verification_status', 'curation_status', 'congress_id', 'relevant_period', 'release_id')
 
 
 def point_id(index_id):
@@ -59,10 +59,13 @@ class QdrantVectorStore:
                 raise VectorStoreError('Qdrant release, schema or embedding identity does not match configuration.')
             if metadata.get('record_kind') != 'release' or metadata.get('publication_status') != 'ready':
                 raise VectorStoreError('Qdrant release publication is incomplete.')
+            if (metadata.get('source_format') != 'senator_markdown'
+                    or metadata.get('curation_status') not in {'project_curated', 'human_reviewed'}):
+                raise VectorStoreError('Qdrant release is not a supported curated Markdown release.')
             counts = metadata.get('expected_counts')
-            if (not isinstance(counts, dict) or len(counts) != 2
+            if (not isinstance(counts, dict) or not counts
                     or any(not isinstance(k, str) or not isinstance(v, int) or isinstance(v, bool) or v <= 0 for k, v in counts.items())
-                    or sum(counts.values()) != metadata.get('expected_rows') or not metadata.get('reviewed_at')):
+                    or sum(counts.values()) != metadata.get('expected_rows')):
                 raise VectorStoreError('Qdrant release coverage metadata is invalid.')
             if getattr(embedder, 'provider_name', None) != config.embedding_provider or embedder.model_name != config.embedding_model:
                 raise VectorStoreError('Qdrant query embedder does not match the stored model.')
@@ -89,7 +92,7 @@ class QdrantVectorStore:
             response = self.client.query_points(
                 collection_name=self.collection_name, query=vector, limit=min(top_k, 5),
                 query_filter=filters(record_kind='evidence', senator_id=senator_id,
-                    verification_status='verified', release_id=self.config.release,
+                    curation_status='project_curated', release_id=self.config.release,
                     relevant_period=relevant_period, congress_id=congress_id),
                 # Chroma's cosine distance is 1 - Qdrant's cosine similarity.
                 score_threshold=1.0 - self.config.max_distance, with_payload=True, with_vectors=False)
@@ -100,7 +103,7 @@ class QdrantVectorStore:
                     continue
                 distance = 1.0 - hit.score
                 if (record.get('record_kind') != 'evidence' or record.get('senator_id') != senator_id
-                        or record.get('verification_status') != 'verified' or record.get('release_id') != self.config.release
+                        or record.get('curation_status') != 'project_curated' or record.get('release_id') != self.config.release
                         or (congress_id and record.get('congress_id') != congress_id)
                         or (relevant_period and record.get('relevant_period') != relevant_period)
                         or not isinstance(record.get('text'), str) or not record['text'].strip()
@@ -155,7 +158,9 @@ def publish_qdrant_release(rows, manifest, config, *, client=None, embedder=None
     embedder = embedder if embedder is not None else config.embedder()
     metadata = {**config.metadata(), 'record_kind': 'release', 'publication_status': 'building',
                 'expected_counts': manifest['expected_counts'], 'expected_rows': manifest['expected_rows'],
-                'reviewed_at': manifest['reviewed_at']}
+                'source_format': manifest['source_format'], 'curation_status': manifest['curation_status'],
+                'prepared_at': manifest.get('prepared_at', ''),
+                'reviewed_at': manifest.get('reviewed_at', '')}
     try:
         # Never use recreate_collection. The server rejects an existing name.
         created = client.create_collection(config.collection,

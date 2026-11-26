@@ -31,9 +31,7 @@ The final `## References` section defines each `SRC-*` entry and its provenance:
 
 The source title and issuing body are preserved as written. A full ISO publication date is extracted when present; otherwise the original date wording is retained and `publication_date` remains unavailable. `Access` and `Access_Note` fields are also preserved. URLs must be HTTPS to qualify for indexing; the importer does not verify a page by making a network request.
 
-Only a claim explicitly labeled `Evidence_Status: VERIFIED` with resolved source IDs and complete, safe provenance becomes `verification_status: verified`. Other statuses such as `CORROBORATED`, `REPORTED`, `ALLEGED`, `DISPUTED`, or `UNVERIFIED` remain in the JSONL as `candidate_source`; Chroma excludes those chunks. A missing or malformed bibliography entry also keeps the affected claim out of the index while allowing other claims to be processed. Profile-level `verification_status: PARTIAL` and `verification_note` are retained on every chunk; they do not promote claims to verified.
-
-The importer preserves the claim ID, section, period, context, evidence status, source metadata, and source-file checksum. Research-limitations sections are not treated as factual claim chunks. Retrieved claim text remains untrusted reference data, not instructions.
+The Chat importer now includes every body section and claim regardless of `Evidence_Status`. It preserves claim and profile statuses as supplied, attaches resolved or unresolved source metadata when available, and records a locator and checksum for each Markdown file. The separate Compare page keeps its existing display rule for `VERIFIED` claims. Retrieved text remains reference data and cannot change the assistant's instructions.
 
 ## Legacy format
 
@@ -45,4 +43,4 @@ The importer continues to accept the earlier format with `senator_id`, the fixed
 python tools/ingest_senator_records.py
 ```
 
-The command writes `data/corpus/processed/senator_chunks.jsonl`. The separate `python tools/ingest_documents.py` flow continues to process reviewed original PDFs, HTML, and Markdown source documents from the corpus manifest.
+The command writes all Markdown sections to `data/corpus/processed/senator_chunks.jsonl`. The separate original-document manifest flow is not used by Chat and rejects PDF/HTML inputs.

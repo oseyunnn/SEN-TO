@@ -51,8 +51,8 @@ class ChatbotService:
             metadata = store.metadata
             import json
             counts = metadata.get('expected_counts') if config.backend == 'qdrant_cloud' else json.loads(metadata.get('coverage_json', '{}'))
-            return {'status': 'reviewed_release', 'count': counts.get(senator_id, 0),
-                    'reviewed_at': metadata.get('reviewed_at'), 'release_id': config.release}
+            return {'status': 'project_curated_release', 'count': counts.get(senator_id, 0),
+                    'curation_status': metadata.get('curation_status'), 'release_id': config.release}
         except Exception:
             return {'status': 'service_unavailable', 'count': None, 'reviewed_at': None}
     def indexed_passage_count(self):

@@ -13,9 +13,9 @@ The next release should be a **limited real project**, not a claim that the enti
 
 - A Python 3.12 deployment target with Home, Chat and Compare.
 - Twenty-four dated directory entries and research profiles. These do not establish current membership, bloc affiliation or verified profile facts.
-- `data/mock_documents.json` remains a legacy fixture and is not evidence. The Chat frontend adapter now calls the RAG pipeline, provider adapters, and citation checks. The index currently has no reviewed records, so factual requests abstain before generation.
-- The local ingestion layer parses the current claim-based per-senator research profiles, maps each profile to the app’s senator directory, and attaches `SRC-*` references and claim evidence statuses to chunks. Only explicitly `VERIFIED` claims with complete safe provenance are indexable. The older fixed-section format remains supported.
-- The reference-only Francis Escudero file is intentionally skipped by ingestion. Compare reads claim-based Markdown profiles and displays provenance-complete `VERIFIED` claims across shared categories, with source links and explicit gaps.
+- `data/mock_documents.json` remains a legacy fixture and is not evidence. The Chat frontend adapter calls the RAG pipeline, provider adapters, and citation checks. No project-curated Markdown collection has been published to Qdrant, so hosted factual requests cannot retrieve evidence yet.
+- The active Chat ingestion path maps every senator Markdown file to the app directory and chunks every body section, retaining claim statuses and available `SRC-*` metadata. The separate Compare parser continues to use its existing `VERIFIED`-claim display rules.
+- Chat ingestion now includes every Markdown file, including the Chiz Escudero profile, and every body section. Compare continues to read claim-based profiles and display provenance-complete `VERIFIED` claims across shared categories, with source links and explicit gaps.
 - No authentication or account creation. The guest display-name control and unused state have been removed. Chat history is held in Streamlit session state.
 - Home/Landing, Chat and Compare pages are implemented.
 - Legacy Community backend and SQLite code remain in the repository, but the current app does not expose or initialize them.
@@ -24,17 +24,17 @@ Keep these limitations visible until the corresponding features are genuinely im
 
 ## 3. Scope and decisions
 
-### First focused demonstration
+### Markdown corpus release decision — 27 November 2026
 
-The approved deployment direction is a **two-senator pilot: one majority and one minority senator**, selected only after dated authoritative verification. The earlier plan targeted all 24 seats and the broader brief described a Minority Bloc product. These are future directions, not the pilot's coverage claim. Preserve the 24 directory entries and all existing research; apply equal evidence standards before expanding. No current bloc pair has yet been approved.
+For the school-assignment release, the owner designated every existing senator Markdown profile as trusted project-curated content. The active release builder includes every body section and claim regardless of `Evidence_Status`, preserves available source and status metadata, and records source-file checksums. It does not require a separate claim approval register or a two-person majority/minority selection. PDF and HTML ingestion is disabled. This changes the release scope from the earlier two-senator pilot direction.
 
-Start with a common record type and clearly defined period for both pilot subjects. A shared record may be associated with multiple senators only when each association is reviewed. Do not imply complete coverage from selected records.
+This is a project curation decision, not an independent fact-check by software. The exporter preserves source metadata and exact Markdown checksums and does not invent or revise claims. The resulting corpus remains partial: it does not establish complete Senate coverage, a live roster, current bloc membership, or current roles. Keep those limitations visible and abstain where indexed evidence does not support an answer.
 
 ### Deployment implementation update
 
-Cloud configuration, hosted embeddings, read-only Qdrant runtime, normalized Congress filtering, explicit subject handoffs, citation mappings, session-local answer caching, release export/publication and read-only health tools are implemented locally. The hosted Chat adapter now reads root-level Streamlit Secrets directly, requires Qdrant Cloud and OpenAI, and has no local/Ollama fallback. It also limits requests to eight per session and thirty per app process per rolling minute. Evidence review, model-account verification, live evaluation, hosting promotion and laptop-off acceptance remain open. See [deployment status](docs/DEPLOYMENT_STATUS.md) and [setup](docs/RAG_SETUP.md). The original phase list below remains a roadmap; these status notes supersede stale descriptions of absent Home/navigation or a wholly empty research corpus.
+Cloud configuration, hosted embeddings, read-only Qdrant runtime, normalized Congress filtering, explicit subject handoffs, citation mappings, session-local answer caching, release export/publication and read-only health tools are implemented locally. The hosted Chat adapter reads root-level Streamlit Secrets, requires Qdrant Cloud and OpenAI, and has no local/Ollama fallback. It also limits requests to eight per session and thirty per app process per rolling minute. Release publication, model-account verification, live evaluation, hosting promotion and laptop-off acceptance remain open. See [deployment status](docs/DEPLOYMENT_STATUS.md) and [setup](docs/RAG_SETUP.md).
 
-The owner subsequently selected Qdrant Cloud because Chroma signups were unavailable, created `sento-demo` and separate manage/read keys, and supplied its HTTPS endpoint. Qdrant runtime, create-only publication and health-check support are now implemented. See [Qdrant setup](docs/QDRANT_SETUP.md). Account creation is complete per the dashboard screenshot; authenticated application access, reviewed publication and deployment are still pending. This changes the storage vendor, not the evidence, neutrality or two-subject pilot requirements.
+The owner subsequently selected Qdrant Cloud because Chroma signups were unavailable, created `sento-demo` and separate manage/read keys, and supplied its HTTPS endpoint. Qdrant runtime, create-only publication and health-check support are implemented. See [Qdrant setup](docs/QDRANT_SETUP.md). Account creation is complete per the dashboard screenshot; release publication and deployment are still pending.
 
 ### Product boundaries
 
@@ -50,7 +50,7 @@ The owner subsequently selected Qdrant Cloud because Chroma signups were unavail
 ### Phase 0 — Verify scope and evidence rules
 
 1. Verify the 20th Congress roster and maintain dated records of changes. Save the official sources and retrieval dates with the project research notes.
-2. Choose a small, shared evidence target for both pilot subjects, such as selected measures and a limited set of journal/roll-call records over the same period. Add profile or committee data only when it supports the initial questions.
+2. For the current school-assignment release, use every section in the existing senator Markdown profiles. Keep source, period, claim status, and coverage limitations visible.
 3. Agree on status labels: `unverified_demo`, `candidate_source`, `verified`, `conflicting`, and `stale`. Define who reviews changes and how often time-sensitive facts are rechecked.
 4. Maintain an evidence register before importing facts. Each entry should identify the claim, subject, source, exact locator, relevant period, publication date, retrieval date, verification status, and any caveat.
 
@@ -69,7 +69,7 @@ The owner subsequently selected Qdrant Cloud because Chroma signups were unavail
 
 ### Phase 2 — Turn the selected records into a small, auditable dataset
 
-1. Collect a small set of manually reviewed official Senate records for the agreed record types and period. The ingestion implementation accepts local developer-curated PDF, HTML, and Markdown files; it does not fetch web content. Markdown transcriptions must be checked against and retain the official source URL.
+1. Maintain the source metadata and explicit evidence status in the senator Markdown profiles. The active chatbot workflow accepts only Markdown and does not fetch cited URLs or process PDF/HTML files.
 2. Describe each document in `data/corpus/manifest.json` with source URL, issuing body, title, publication/retrieval dates, period, record type, verification status, and optional subject IDs.
 3. Run `python tools/ingest_documents.py` to validate the manifest, extract/normalize text, preserve page/section locators and source checksums, and write deterministic JSONL chunks. Inspect extraction against every source before indexing.
 4. OCR, embeddings, vector storage, source-backed retrieval, generation, and citation validation are not part of this ingestion step. The active Chat UI reports that answers are unavailable until those later pieces are connected.
@@ -79,7 +79,7 @@ The owner subsequently selected Qdrant Cloud because Chroma signups were unavail
 
 ### Phase 3 — Replace simulated answers with evidence-grounded responses
 
-**Implementation status:** The Chat UI calls the ingestion/index/retrieval/generation/citation-validation path through the frontend adapter. The original-document manifest is empty and the profile research has no approved release. Factual requests abstain until reviewed records are indexed. The previous mock pipeline remains as legacy code and is not used by the Chat UI.
+**Implementation status:** The Chat UI calls the ingestion/index/retrieval/generation/citation-validation path through the frontend adapter. An offline Markdown package with 968 chunks across 24 subjects is prepared and marked project-curated; it has not been published to Qdrant. Factual requests abstain until evidence is indexed. The previous mock pipeline remains as legacy code and is not used by the Chat UI.
 
 1. The hosted Chat runtime uses OpenAI query embeddings and generation with Qdrant Cloud vector search. It reads its settings from Streamlit Secrets and requires a Qdrant read-only key. Local Chroma/Ollama adapters remain available to maintenance tooling; the deployed path has no local fallback.
 2. Retrieval filters for the selected senator and verified sources, supports an optional period filter, and applies a configurable cosine-distance cutoff. The pipeline checks subject isolation again before generation.
@@ -88,7 +88,7 @@ The owner subsequently selected Qdrant Cloud because Chroma signups were unavail
 5. Citation validation confirms each marker refers to retrieved evidence with verified source metadata and an HTTPS URL. It is a mechanical integrity check, not proof that each statement is entailed by the source. The UI shows citation metadata and locators when provided and distinguishes no-evidence, policy-limit, validation-failure, and service-unavailable responses.
 6. No retrieved evidence means an explicit abstention; there is no fallback to the old demo corpus. Show index/evidence status in the UI before treating Phase 3 as complete.
 
-**Remaining exit work:** Add reviewed source records, then evaluate answer support, conflict/staleness handling, period selection, injection resistance, and representative abstentions. Do not claim comprehensive or fully semantically verified answers before this review.
+**Remaining exit work:** Publish the prepared Markdown package to Qdrant, then evaluate answer support, conflict/staleness handling, period selection, injection resistance, and representative abstentions. Do not claim comprehensive or fully semantically verified answers before this review.
 
 ### Phase 4 — Make Compare useful and fair
 
@@ -114,8 +114,8 @@ The owner subsequently selected Qdrant Cloud because Chroma signups were unavail
 ## 5. Suggested first work session
 
 1. Create a dated roster/evidence register for the 20th Congress using official sources.
-2. Choose a small shared set of record types, questions, and a comparable time window for the pilot.
-3. Pilot PDF/HTML/Markdown extraction and manual review on a few official records before collecting broadly.
+2. Choose supported and unsupported evaluation questions across the current Markdown corpus and clearly state the period represented by each source.
+3. Prepare the project-curated Markdown release and evaluate its citations and answer support before enabling it in Streamlit.
 4. Continue the public-site work: sketch the landing-page content, implement Home navigation, remove the guest display-name control, and add the sourced youth civic-participation call to action.
 5. Expand the reviewed corpus using the same rules, then connect source-backed Chat and Compare behavior.
 
