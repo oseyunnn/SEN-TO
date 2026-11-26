@@ -25,7 +25,12 @@ def main() -> int:
     except SenatorRecordError as exc:
         print(f"Senator record ingestion stopped: {exc}", file=sys.stderr)
         return 2
-    print(f"Wrote {len(records)} reviewed claim chunks to {args.output}")
+    verified = sum(record.get("verification_status") == "verified" for record in records)
+    candidates = len(records) - verified
+    print(
+        f"Wrote {len(records)} claim chunks to {args.output} "
+        f"({verified} indexable; {candidates} candidate or unverified)."
+    )
     return 0
 
 

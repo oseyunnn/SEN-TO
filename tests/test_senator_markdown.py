@@ -5,7 +5,6 @@ import pytest
 from ai.senator_markdown import (
     SENATOR_SECTIONS,
     SenatorRecordError,
-    ingest_senator_records,
     parse_senator_markdown,
 )
 
@@ -57,9 +56,63 @@ def test_parses_claim_and_attaches_reference_provenance(tmp_path):
 
 
 def test_reference_sample_is_skipped(tmp_path):
-    sample = Path(__file__).resolve().parents[1] / "data/senator_records/francis-escudero.md"
+    sample = tmp_path / "francis-escudero.md"
+    sample.write_text(
+        "---\nsenator_id: francis-escudero\nrecord_status: reference_sample\n---\n"
+        "Reference-only text.\n",
+        encoding="utf-8",
+    )
     assert parse_senator_markdown(sample) == []
-    assert ingest_senator_records(sample.parent) == []
+
+
+def test_ingests_current_profile_schema_with_claim_status_and_provenance(tmp_path):
+    sample = tmp_path / "risa-hontiveros.md"
+    sample.write_text(
+        "---\n"
+        "document_id: SEN024\n"
+        "document_type: senator_profile\n"
+        "full_name: Ana Theresia Navarro Hontiveros-Baraquel\n"
+        "common_name: Risa Hontiveros\n"
+        "aliases:\n"
+        "- Risa Hontiveros\n"
+        "verification_status: PARTIAL\n"
+        "verification_note: First review note\n"
+        "  continued on the next line.\n"
+        "---\n"
+        "# Risa Hontiveros\n\n"
+        "## 01_Biography\n\n"
+        "- [CLM-BIO-001] A reviewed claim tied to a Senate record.\n"
+        "  Period: 20th Congress\n"
+        "  Context: A qualification supplied by the researcher.\n"
+        "  Evidence_Status: VERIFIED\n"
+        "  Sources: [SRC-001]\n\n"
+        "- [CLM-BIO-002] A corroborated claim with the same source.\n"
+        "  Period: 20th Congress\n"
+        "  Evidence_Status: CORROBORATED\n"
+        "  Sources: [SRC-001]\n\n"
+        "## References\n\n"
+        "- [SRC-001] Senate Journal — Senate of the Philippines, 2026-01-02.\n"
+        "  URL: https://senate.gov.ph/record.pdf\n"
+        "  Retrieved: 2026-11-25\n"
+        "  Locator: p. 14, roll-call table\n",
+        encoding="utf-8",
+    )
+
+    chunks = parse_senator_markdown(sample)
+
+    assert len(chunks) == 2
+    verified, corroborated = chunks
+    assert verified["senator_id"] == "risa-hontiveros"
+    assert verified["claim_id"] == "CLM-BIO-001"
+    assert verified["verification_status"] == "verified"
+    assert verified["profile_verification_status"] == "PARTIAL"
+    assert "continued on the next line." in verified["profile_verification_note"]
+    assert "Context: A qualification supplied by the researcher." in verified["text"]
+    assert verified["citation_sources"][0]["title"] == "Senate Journal"
+    assert verified["citation_sources"][0]["issuing_body"] == "Senate of the Philippines"
+    assert verified["citation_sources"][0]["locator"] == "p. 14, roll-call table"
+    assert corroborated["evidence_status"] == "CORROBORATED"
+    assert corroborated["verification_status"] == "candidate_source"
 
 
 def test_requires_all_sections_once_and_in_order(tmp_path):
