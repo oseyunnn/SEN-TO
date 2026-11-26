@@ -20,7 +20,7 @@ from frontend.components.chat_bubble import chat_bubble
 
 _LOADING_LABELS = {
     "checking_scope": "Checking what this dataset can answer",
-    "searching_sources": "Searching reviewed sources",
+    "searching_sources": "Searching project-curated Markdown notes",
     "checking_evidence": "Checking the evidence for this senator",
     "writing_answer": "Writing a source-linked answer",
     "checking_citations": "Checking citations and source links",
@@ -28,7 +28,7 @@ _LOADING_LABELS = {
 
 
 def _loading_status(stage):
-    label = escape(_LOADING_LABELS.get(stage, "Searching reviewed sources"))
+    label = escape(_LOADING_LABELS.get(stage, "Searching project-curated Markdown notes"))
     return (
         '<div class="chat-loading-status" role="status" aria-live="polite">'
         '<span class="thinking-dots" aria-hidden="true"><i></i><i></i><i></i></span>'
@@ -76,7 +76,7 @@ def _send_with_progress(senator_id, question, progress_callback, congress_id=Non
 
 @st.dialog("Sources & evidence", width="large")
 def _dataset_profile(senator):
-    st.write("Chat searches reviewed, indexed sources for the selected directory entry. Source links and locators for an answer appear with that answer.")
+    st.write("Chat searches the project's curated Markdown notes for the selected directory entry. Available citations and source locators appear with each answer.")
     st.caption("A missing result does not prove that no public record exists; this dataset may not cover every record.")
     st.caption("The directory names come from a dated official 20th Congress roster; profile facts and affiliations are unverified.")
     profile(senator)
@@ -87,14 +87,15 @@ def render(service):
     histories = st.session_state.histories
     history = histories.setdefault(senator["id"], [])
     coverage = get_chatbot_service().coverage(senator['id'])
-    if coverage['status'] == 'reviewed_release':
-        st.caption(f"Selected subject: {coverage['count']} reviewed passages · Last review: {coverage['reviewed_at']} · Release: {coverage['release_id']}")
+    if coverage['status'] == 'project_curated_release':
+        st.caption(f"Selected subject: {coverage['count']} project-curated Markdown chunks · Release: {coverage['release_id']}")
     elif coverage['status'] == 'local_development':
-        st.caption('Local development dataset. No published reviewed release is configured.')
+        st.caption('Local development dataset. No published project-curated release is configured.')
     else:
         st.warning('Source service configuration needs attention.' if coverage['status'] == 'configuration_error' else 'Source service is temporarily unavailable.')
     selected_period = st.selectbox('Evidence period', ['All dated records', '20th Congress', '19th Congress'], key='chat_evidence_period')
     congress_id = {'20th Congress': '20', '19th Congress': '19'}.get(selected_period)
+    st.caption("Answers come from the project's curated Markdown notes.")
     st.caption('Ask a complete question each time. Earlier messages are not sent to the model. Historical evidence does not establish current status.')
     # Streamlit sessions can survive a code reload; do not keep rendering the
     # old simulated answers after retiring that path.
@@ -110,7 +111,7 @@ def render(service):
         with st.container(key="chat_content"):
             answer_loading_slot = None
             if not history:
-                st.html(f'<div class="welcome">{avatar(senator,"hero")}<div class="tricolor"><i></i><i></i><i></i></div><h1>Kilalanin ang Senador Mo!</h1><p>Ask questions and explore the public record <br>of {escape(senator["name"])}.</p><small>SEN’TO summarizes reviewed sources. It does not speak for a senator, and its records may be incomplete.</small></div>')
+                st.html(f'<div class="welcome">{avatar(senator,"hero")}<div class="tricolor"><i></i><i></i><i></i></div><h1>Kilalanin ang Senador Mo!</h1><p>Ask questions and explore the public record <br>of {escape(senator["name"])}.</p><small>SEN’TO summarizes the project’s curated Markdown notes. It does not speak for a senator, and its records may be incomplete.</small></div>')
                 with st.container(key="suggestions"):
                     questions = service.suggestions(senator["id"])
                     labels = ["What bills has this senator authored?", "What committees does this senator serve on?", "What are this senator’s documented positions?", "Explore this senator’s legislative contributions"]

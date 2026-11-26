@@ -38,7 +38,6 @@ def main():
         manifest = json.loads(args.release_manifest.read_text(encoding='utf-8'))
         require(checksum(args.chunks) == manifest.get('chunks_sha256'), 'Chunk checksum mismatch.')
         rows = validate_package(read_jsonl([args.chunks]), manifest, config)
-        require(checksum(args.release_manifest.parent / 'review.json') == manifest.get('review_sha256'), 'Review checksum mismatch.')
         store = build_retriever(config)._get_store()
         if config.backend == 'qdrant_cloud':
             from ai.qdrant_store import verify_qdrant_collection

@@ -1,12 +1,12 @@
 # RAG setup and publication
 
-**Selected deployment:** Qdrant Cloud. Follow [QDRANT_SETUP.md](QDRANT_SETUP.md) for the cluster, Streamlit Secrets, publishing credentials and release steps. The hosted Chat path is Qdrant-only; local Chroma and the Chroma Cloud adapter remain maintenance alternatives. Evidence-review requirements apply to every backend.
+**Selected deployment:** Qdrant Cloud. Follow [QDRANT_SETUP.md](QDRANT_SETUP.md) for the cluster, Streamlit Secrets, publishing credentials and release steps. The hosted Chat path is Qdrant-only; local Chroma remains a maintenance option. The active release path uses only the project's senator Markdown profiles.
 
 Use Python 3.12 and install requirements.txt. The hosted Chat runtime reads its settings directly from root-level Streamlit Secrets and requires hosted embeddings/generation plus an existing Qdrant Cloud collection. It never reads a local secrets file or process environment, publishes evidence, or falls back to a local service. Local development and maintenance CLI configuration remain separate.
 
 ## Cloud settings
 
-Enter root-level TOML values in the existing Streamlit app's Settings → Secrets. Never commit or create a local runtime secrets file. Collection and release values stay blank until an approved release has been published and checked:
+Enter root-level TOML values in the existing Streamlit app's Settings → Secrets. Never commit or create a local runtime secrets file. Collection and release values stay blank until a Markdown release has been published and checked:
 
 ```toml
 SENTO_VECTOR_BACKEND = "qdrant_cloud"
@@ -35,50 +35,35 @@ The UI allows eight submitted questions per session per rolling minute. The clou
 
 The runtime uses OpenAI-supplied vectors in Qdrant Cloud with cosine search, schema/release checks and read-only query methods. `SENTO_QDRANT_READ_ONLY_API_KEY` is the only Qdrant credential name accepted from app Secrets. Confirm it has the Read Cluster role in the Qdrant dashboard; runtime naming cannot verify a key's server-side permissions. Keep publisher credentials in a separate maintainer environment. The app reads Streamlit Secrets directly through `st.secrets`; see [Streamlit Secrets management](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/secrets-management).
 
-## Review and prepare a release
+## Prepare a Markdown release
 
-The pilot is one majority and one minority senator, selected only after current dated authoritative checks. All 24 research profiles remain available for future work. VERIFIED in a profile means importer eligibility, not independent verification.
+The Markdown profiles are trusted project-curated content for this school assignment. Release preparation does not use `data/releases/demo-r1/review.json` and does not require a separate claim approval register. It includes every body section and claim from every Markdown file, preserves each claim's existing evidence status and available source metadata, and records source-file checksums. It does not infer periods or alter claim statuses.
 
-Run the importer and inspect original sources. Fill data/releases/demo-r1/review.json with subjects, reviewed_at and decisions. Each approval needs:
-
-Also supply a scope_review array with exactly two entries. Each entry needs senator_id, bloc (majority or minority), reviewer, reviewed_at, as_of, and source. The source object needs title, issuing_body, source_url, publication_date when available, retrieved_at, relevant_period, locator and verification_status=verified. This records the dated original-source basis for pilot selection; it is distinct from the claim approvals below.
-
-```json
-{
-  "senator_id": "<directory ID>",
-  "claim_id": "<exact CLM ID>",
-  "decision": "approved",
-  "reviewer": "<human reviewer>",
-  "reviewed_at": "YYYY-MM-DD",
-  "source_sha256": "<SHA-256 of exact profile bytes>",
-  "congress_id": "20",
-  "period_basis": "<original record and locator establishing Congress>",
-  "sources": [{"source_url": "<original HTTPS URL>", "locator": "<exact locator>"}]
-}
-```
-
-Use 19, 20, or historical for the normalized field. Preserve the raw period in citations. Record excluded/conflicting/stale decisions separately; only explicit approvals export. The profile checksum is not an original-webpage checksum. Retain archived-original checksums separately. A changed profile requires review again.
+PDF and HTML ingestion is disabled. The importer reads `.md` and `.markdown` files from `data/senator_records/` only. The default release includes every section for every subject found in those files. Use repeated `--subject` options only when preparing an intentional subset.
 
 ```sh
 python tools/ingest_senator_records.py
-python tools/prepare_corpus_release.py --chunks data/corpus/processed/senator_chunks.jsonl --review-register data/releases/demo-r1/review.json --output-dir data/releases/demo-r1
+python tools/prepare_markdown_release.py \
+  --release-id demo-md-r1 \
+  --collection sento_demo_md_r1_openai_te3small_1536 \
+  --output-dir data/releases/demo-md-r1
 ```
 
-Output includes chunks, review register and manifest with approved IDs, source/importer identity, checksums and expanded per-subject counts. Export refuses missing approvals, changed bytes, incomplete provenance and out-of-scope associations. The committed starter register approves nothing and deliberately fails this gate. Never substitute a fictitious reviewer to make it pass.
+The builder reparses the current Markdown files and refuses a stale or modified processed-chunk file. The immutable package contains `chunks.jsonl` and `manifest.json`, including per-senator counts, section locators, source checksums, embedding identity, and `curation_status: project_curated`. It contains no reviewer or approval date. The empty `demo-r1/review.json` is retained as historical data and is not consulted by this path.
 
 ## Publish a new candidate
 
 In the maintainer environment, use matching Qdrant deployment settings and set `SENTO_ACTIVE_COLLECTION` to the serving collection, or `NONE` for first publication. Set `SENTO_QDRANT_COLLECTION` to a new candidate name. Do not change the running app yet. See [QDRANT_SETUP.md](QDRANT_SETUP.md) for the separate publisher settings and exact commands.
 
 ```sh
-python tools/index_corpus.py --chunks data/releases/demo-r1/chunks.jsonl --release-manifest data/releases/demo-r1/manifest.json --dry-run
-python tools/index_corpus.py --chunks data/releases/demo-r1/chunks.jsonl --release-manifest data/releases/demo-r1/manifest.json --apply
-python tools/check_rag.py --chunks data/releases/demo-r1/chunks.jsonl --release-manifest data/releases/demo-r1/manifest.json
+python tools/index_corpus.py --chunks data/releases/demo-md-r1/chunks.jsonl --release-manifest data/releases/demo-md-r1/manifest.json --dry-run
+python tools/index_corpus.py --chunks data/releases/demo-md-r1/chunks.jsonl --release-manifest data/releases/demo-md-r1/manifest.json --apply
+python tools/check_rag.py --chunks data/releases/demo-md-r1/chunks.jsonl --release-manifest data/releases/demo-md-r1/manifest.json
 ```
 
-Dry run validates local hashes, approved IDs, counts and provider identity without connecting or embedding. Apply creates a Qdrant collection; it cannot overwrite an existing name or the declared active collection. Writes use batches of 32. Failed uploads remain building, which runtime rejects. Retry with a new candidate name and matching manifest; never refresh a live collection with one senator's subset. The checker paginates IDs and verifies complete metadata without paid model calls. Ready means upload verification passed, not human answer review.
+Dry run validates local hashes, chunk IDs, counts and provider identity without connecting or embedding. Apply creates a Qdrant collection; it cannot overwrite an existing name or the declared active collection. Writes use batches of 32. Failed uploads remain building, which runtime rejects. Retry with a new candidate name and matching manifest; never refresh a live collection with a subset. The checker paginates IDs and verifies complete metadata without paid model calls. Ready means upload verification passed; it does not mean independent fact-checking or answer-quality evaluation.
 
-Run five supported and three unsupported questions per enabled senator, covering English, Filipino and Taglish. Record sentence-by-sentence human support checks in questions.json. Tune retrieval against these reviewed questions. Verify isolation, stale/current distinctions, citations, outages and injection handling. Only then select the new collection/release in app settings. Retain the prior collection for rollback and restore its matching collection, release and model settings together if needed.
+Before enabling the release in Streamlit, evaluate supported and unsupported questions across included subjects in English, Filipino and Taglish. Check sentence-level support, subject isolation, stale/current distinctions, citations, outages and prompt injection. Then set the new collection/release in app Secrets. Retain the prior collection for rollback and restore its matching collection, release and model settings together if needed.
 
 ## Local development
 
@@ -93,8 +78,8 @@ Bare indexing is a local maintenance command that replaces stale rows. Generated
 
 ## Data flow and operation
 
-Questions go to the hosted OpenAI embedding API; vectors and subject/period filters go to Qdrant Cloud. Publication sends reviewed passages, vectors and citation metadata to Qdrant. Generation sends the current question, selected subject and bounded evidence to the OpenAI Responses endpoint with store=False, a 45-second timeout, no retries and a 700-token output cap. This does not guarantee zero provider retention. Earlier session messages are not sent; questions must stand on their own. No transcript, account, analytics or telemetry storage was added.
+Questions go to the hosted OpenAI embedding API; vectors and subject/period filters go to Qdrant Cloud. Publication sends project-curated Markdown passages, vectors and citation metadata to Qdrant. Generation sends the current question, selected subject and bounded evidence to the OpenAI Responses endpoint with store=False, a 45-second timeout, no retries and a 700-token output cap. This does not guarantee zero provider retention. Earlier session messages are not sent; questions must stand on their own. No transcript, account, analytics or telemetry storage was added.
 
-Cached services share clients/connections only. Histories and answer-cache entries remain session-local, separate per senator in chat history, and may reset on disconnect or restart. Explicit handoffs make no embedding/generation call and do not transfer history or resubmit questions. Uncovered subjects show zero reviewed passages; missing evidence is not proof of inactivity. Citation validation verifies marker/provenance integrity, not semantic entailment.
+Cached services share clients/connections only. Histories and answer-cache entries remain session-local, separate per senator in chat history, and may reset on disconnect or restart. Explicit handoffs make no embedding/generation call and do not transfer history or resubmit questions. Subjects without eligible indexed claims have no retrieved passages; missing evidence is not proof of inactivity. Citation validation verifies marker/provenance integrity, not semantic entailment.
 
 Configure spending limits and alerts privately and name a maintenance/correction owner. Test cloud wake, restart and another-device access with the laptop off before declaring deployment complete. See [DEPLOYMENT_STATUS.md](DEPLOYMENT_STATUS.md) for outstanding gates.

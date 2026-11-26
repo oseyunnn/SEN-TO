@@ -17,7 +17,6 @@ import unicodedata
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from pypdf import PdfReader
 
 
 SCHEMA_VERSION = "1.0"
@@ -192,6 +191,7 @@ def _extract_markdown(path: Path) -> list[TextUnit]:
 
 
 def _extract_pdf(path: Path) -> list[TextUnit]:
+    from pypdf import PdfReader
     try:
         reader = PdfReader(str(path), strict=True)
         if reader.is_encrypted:
@@ -339,21 +339,11 @@ def ingest(manifest_path: Path, source_root: Path) -> list[dict]:
             if raw_sha256.lower() != expected_sha256.lower():
                 raise IngestionError(f"{entry['document_id']}: source file checksum does not match expected_sha256.")
         extension = path.suffix.lower()
-        if extension == ".pdf":
-            if not data.startswith(b"%PDF-"):
-                raise IngestionError(f"File extension says PDF but signature is invalid: {path.name}")
-            units = _extract_pdf(path)
-            mime_type = "application/pdf"
-        elif extension in {".html", ".htm"}:
-            if b"\x00" in data[:4096]:
-                raise IngestionError(f"HTML file contains unexpected binary data: {path.name}")
-            units = _extract_html(path)
-            mime_type = "text/html"
-        elif extension in {".md", ".markdown"}:
+        if extension in {".md", ".markdown"}:
             units = _extract_markdown(path)
             mime_type = "text/markdown"
         else:
-            raise IngestionError(f"Unsupported source format for {path.name}; use PDF, HTML, or Markdown.")
+            raise IngestionError(f"Unsupported source format for {path.name}; only Markdown files are processed.")
 
         page_chunk_index = 0
         for unit in units:

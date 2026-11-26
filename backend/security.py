@@ -34,10 +34,10 @@ BULK_RETRIEVAL_REFUSAL_FIL = (
     "Magtanong tungkol sa isang partikular na public record."
 )
 NO_EVIDENCE_FIL = (
-    "Wala akong nakitang nasuring source sa kasalukuyang dataset na sumasagot sa tanong na ito. "
+    "Wala akong nakitang passage sa project-curated notes na sumasagot sa tanong na ito. "
     "Hindi ito nangangahulugang walang pampublikong rekord."
 )
-NO_EVIDENCE_LIMITATION_FIL = "Walang nasuring passage sa kasalukuyang corpus na sumusuporta sa sagot na ito."
+NO_EVIDENCE_LIMITATION_FIL = "Walang passage sa project-curated corpus na sumusuporta sa sagot na ito."
 SERVICE_UNAVAILABLE_FIL = "Pansamantalang hindi available ang source-backed answer service. Walang nabuong sagot."
 
 _FILIPINO_MARKERS = {

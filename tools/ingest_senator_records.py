@@ -1,4 +1,4 @@
-"""Build reviewed chunks from one sectioned Markdown file per senator."""
+"""Chunk every section in the project-curated senator Markdown corpus."""
 
 import argparse
 from pathlib import Path
@@ -8,7 +8,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from ai.ingestion import write_jsonl_atomic
-from ai.senator_markdown import SenatorRecordError, ingest_senator_records
+from ai.senator_markdown import SenatorRecordError, ingest_project_curated_markdown
 
 
 def main() -> int:
@@ -20,16 +20,13 @@ def main() -> int:
     )
     args = parser.parse_args()
     try:
-        records = ingest_senator_records(args.records)
+        records = ingest_project_curated_markdown(args.records)
         write_jsonl_atomic(records, args.output)
     except SenatorRecordError as exc:
         print(f"Senator record ingestion stopped: {exc}", file=sys.stderr)
         return 2
-    verified = sum(record.get("verification_status") == "verified" for record in records)
-    candidates = len(records) - verified
     print(
-        f"Wrote {len(records)} claim chunks to {args.output} "
-        f"({verified} indexable; {candidates} candidate or unverified)."
+        f"Wrote {len(records)} project-curated Markdown chunks to {args.output}."
     )
     return 0
 
