@@ -101,7 +101,7 @@ def test_openai_provider_uses_requested_luna_responses_api_without_storing():
 
         def create(self, **kwargs):
             self.kwargs = kwargs
-            return SimpleNamespace(output_text="Answer [E1]")
+            return SimpleNamespace(status="completed", output_text="Answer [E1]")
 
     class Client:
         def __init__(self):

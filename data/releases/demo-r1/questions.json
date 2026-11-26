@@ -1,0 +1,13 @@
+{
+  "release_id": "demo-r1",
+  "status": "pending_reviewed_pair_and_claims",
+  "subjects": [],
+  "cases": [],
+  "required_per_subject": {
+    "supported": 5,
+    "unsupported": 3,
+    "languages_across_supported_set": ["English", "Filipino", "Taglish"],
+    "supported_case_fields": ["question", "congress_id", "expected_claim_ids", "expected_source_urls", "expected_locators", "human_reviewer", "review_date", "sentence_support_decision"],
+    "unsupported_case_fields": ["question", "expected_status"]
+  }
+}

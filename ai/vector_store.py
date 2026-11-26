@@ -102,6 +102,7 @@ def _metadata_for(record: dict) -> dict[str, str]:
         "senator_id": record["senator_id"],
         "verification_status": "verified",
         "relevant_period": str(record["relevant_period"]),
+        "congress_id": str(record.get("congress_id") or ""),
         "section": str(record["section"]),
         "document_id": str(record.get("document_id") or ""),
         "source_sha256": str(record.get("source_sha256") or ""),
@@ -120,8 +121,12 @@ class ChromaVectorStore:
         batch_size: int = 32,
         max_cosine_distance: float | None = None,
         collection=None,
+        client=None,
+        read_only=False,
+        expected_metadata=None,
     ):
         self.embedder = embedder
+        self.read_only = read_only
         self.persist_directory = Path(
             persist_directory or os.environ.get(
                 "SENTO_CHROMA_PATH",
@@ -141,9 +146,13 @@ class ChromaVectorStore:
         model_hash = hashlib.sha256(f"{provider_name}:{embedder.model_name}".encode("utf-8")).hexdigest()[:8]
         self.embedding_provider = provider_name
         self.collection_name = collection_name or f"sento_v1_{provider_token}_{model_token}_{model_hash}"
-        if collection is not None:
-            self.collection = collection
-            self.client = None
+        if collection is not None or client is not None:
+            self.client = client
+            try:
+                self.collection = collection if collection is not None else client.get_collection(name=self.collection_name, embedding_function=None)
+            except Exception:
+                raise VectorStoreError("The configured Chroma collection could not be opened.") from None
+            self._validate_metadata(expected_metadata)
             return
         try:
             import chromadb
@@ -151,7 +160,12 @@ class ChromaVectorStore:
             raise VectorStoreError("ChromaDB is required. Install the project dependencies first.") from exc
         try:
             self.persist_directory.mkdir(parents=True, exist_ok=True)
-            self.client = chromadb.PersistentClient(path=str(self.persist_directory))
+            from chromadb.config import Settings
+            self.client = chromadb.PersistentClient(path=str(self.persist_directory), settings=Settings(anonymized_telemetry=False))
+            if read_only:
+                self.collection = self.client.get_collection(name=self.collection_name, embedding_function=None)
+                self._validate_metadata(expected_metadata)
+                return
             self.collection = self.client.get_or_create_collection(
                 name=self.collection_name,
                 metadata={
@@ -164,17 +178,36 @@ class ChromaVectorStore:
             )
         except Exception as exc:
             raise VectorStoreError(f"Could not open the local Chroma index: {exc}") from exc
+        self._validate_metadata(expected_metadata)
+
+    def _validate_metadata(self, expected_metadata=None):
         collection_metadata = getattr(self.collection, "metadata", None) or {}
         stored_model = collection_metadata.get("embedding_model")
         stored_provider = collection_metadata.get("embedding_provider")
-        if (stored_model and stored_model != embedder.model_name) or (
-            stored_provider and stored_provider != provider_name
+        if (stored_model and stored_model != self.embedder.model_name) or (
+            stored_provider and stored_provider != self.embedding_provider
         ):
             raise VectorStoreError(
                 "The saved Chroma collection uses a different embedding model. Choose a new collection name or rebuild the index."
             )
 
+        if expected_metadata:
+            if any(collection_metadata.get(key) != value for key, value in expected_metadata.items()):
+                raise VectorStoreError("Collection release, schema or embedding identity does not match configuration.")
+            if collection_metadata.get('publication_status') != 'ready':
+                raise VectorStoreError("Collection publication is incomplete; keep the previous release active.")
+            schema = getattr(self.collection, "schema", None)
+            try:
+                index = schema.keys['#embedding'].float_list.vector_index
+                metric = index.config.space if index.enabled else None
+            except (AttributeError, KeyError, TypeError):
+                metric = None
+            if metric != "cosine":
+                raise VectorStoreError("The saved cloud vector index must use cosine distance.")
+
     def index_documents(self, chunks: Iterable[dict]) -> dict[str, int]:
+        if self.read_only:
+            raise VectorStoreError("Runtime collections are read-only.")
         records = _prepare_chunks(chunks)
         if not records:
             raise VectorStoreError("No verified, senator-linked, cited chunks are available to index.")
@@ -211,6 +244,7 @@ class ChromaVectorStore:
         senator_id: str,
         top_k: int = 5,
         relevant_period: str | None = None,
+        congress_id: str | None = None,
     ) -> list[dict]:
         if not query or not query.strip() or not senator_id or top_k <= 0:
             return []
@@ -225,6 +259,8 @@ class ChromaVectorStore:
             ]
             if relevant_period:
                 filters.append({"relevant_period": relevant_period})
+            if congress_id:
+                filters.append({"congress_id": congress_id})
             result = self.collection.query(
                 query_embeddings=[vector],
                 n_results=min(top_k, total),
@@ -249,8 +285,11 @@ class ChromaVectorStore:
             if (
                 record.get("senator_id") != senator_id
                 or record.get("verification_status") != "verified"
+                or (relevant_period and record.get("relevant_period") != relevant_period)
+                or (congress_id and record.get("congress_id") != congress_id)
                 or not text
                 or distance is None
+                or not math.isfinite(float(distance))
                 or float(distance) > self.max_cosine_distance
             ):
                 continue
@@ -265,4 +304,11 @@ class ChromaVectorStore:
         return documents
 
     def count(self) -> int:
-        return int(self.collection.count())
+        try:
+            return int(self.collection.count())
+        except Exception:
+            raise VectorStoreError('The configured source service is unavailable.') from None
+
+    @property
+    def metadata(self):
+        return self.collection.metadata
