@@ -6,7 +6,7 @@
 
 The RAG backend path is connected to the Streamlit Chat page through `frontend/api.py::send_chat_message`. It calls retrieval, generation when usable evidence exists, citation validation, and source display. The source manifest is empty, so the current chat abstains before any model request:
 
-1. **Ingestion:** Developers curate source files and metadata in a manifest or a per-senator Markdown file. The importers parse PDFs, local HTML, and the fixed 13-section senator format, preserve source provenance and locators, and write JSONL chunks. They do not crawl or download web pages.
+1. **Ingestion:** Developers curate source files and metadata in a manifest or a per-senator Markdown file. The importers parse PDFs, local HTML, the current claim-based senator research profiles, and the earlier fixed-section format. Senator claims retain their evidence status and `SRC-*` provenance; only explicitly verified claims with complete safe sources are indexable. The importers do not crawl or download web pages.
 2. **Indexing:** The indexer reads reviewed chunks and stores embeddings in a persistent local Chroma collection. Ollama is the default embedding provider. Chunks without a verified senator association, a verified citation, or verified status are excluded.
 3. **Retrieval and generation:** Retrieval filters to the selected senator and verified records, with an optional period filter and configurable cosine-distance cutoff. The pipeline checks the selected senator again before generation. The default generator uses local Ollama; an optional OpenAI Responses adapter targets `gpt-6-luna`.
 4. **Validation and interface:** The pipeline checks that generated evidence markers resolve to retrieved chunks and safe, verified source metadata. The Chat UI displays citations returned by the pipeline.
@@ -17,7 +17,7 @@ The implementation uses Python and Streamlit with ChromaDB and Ollama adapters. 
 
 ## Current corpus and limits
 
-The source manifest has no records. `data/senator_records/francis-escudero.md` is a reference-only format example and is intentionally skipped. Therefore, the current index contains no usable evidence. The Chat UI calls the RAG pipeline, which abstains until reviewed records are indexed. The 24 names are based on the Senate's dated group-photo roster, not a live membership check. Profile facts and Minority Bloc membership remain unverified.
+The source manifest has no records. The profiles in `data/senator_records/` use the current claim-based format. The latest senator-record ingestion wrote 954 claim chunks: 200 are eligible for indexing and 754 remain candidates or unverified because of their claim status or incomplete source provenance. These generated chunks have not yet been indexed in Chroma. `data/senator_records/francis-escudero.md` is a reference-only format example and is intentionally skipped. The Chat UI abstains until usable records are indexed. The 24 names are based on the Senate's dated group-photo roster, not a live membership check. Profile facts and Minority Bloc membership remain unverified.
 
 Citation validation is a mechanical integrity check: markers must point to retrieved passages, whose source metadata and HTTPS links pass checks. It does not verify that every generated claim is semantically supported by its cited passage. A human review set is required before presenting the system as factually validated. Missing evidence means this dataset could not confirm a point; it does not show that no record exists.
 

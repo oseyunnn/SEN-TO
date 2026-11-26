@@ -1,59 +1,43 @@
-# Senator Markdown record format
+# Senator Markdown records
 
-SEN’TO keeps one curated Markdown file per senator under `data/senator_records/`. The file is a reviewed, searchable summary layer. The cited PDFs, web pages, or other source files remain the evidence archive; the Markdown summary does not replace them.
+`data/senator_records/` contains the curated research profiles used by SEN’TO’s senator-record importer. These Markdown files are the summary layer; citations point back to the source pages, records, or publications. The importer reads local files only and never fetches bibliography URLs.
 
-## Required layout
+## Current researched-profile format
 
-Start with frontmatter containing a stable directory ID:
+The current files use YAML-style frontmatter with `document_type: senator_profile`, a `full_name`, a `common_name`, optional `aliases`, and profile-level review metadata. The importer maps the names and aliases to one unique ID in `data/senators.json`. It does not use `document_id` as the app’s subject ID.
+
+Sections use numbered level-two headings, such as `## 01_Biography` and `## 03_Current_Position`. Claims begin with a stable claim ID and carry their own period, evidence status, and source IDs:
 
 ```md
----
-senator_id: stable-senator-id
----
+## 01_Biography
+
+- [CLM-BIO-001] A concise claim checked against the listed records.
+  Period: Historical
+  Context: Any needed limitation or qualification.
+  Evidence_Status: VERIFIED
+  Sources: [SRC-001, SRC-002]
 ```
 
-Use these section headings exactly once and in this order:
+The final `## References` section defines each `SRC-*` entry and its provenance:
 
 ```md
-## Biography
-## Political_History
-## Current_Position.
-## Legislative_Authorship.
-## Voting_Records
-## Policy_Standpoints
-## Laws_and_Accomplishments
-## Public_Service
-## Graft_and_Corruption
-## Controversies
-## Public_Statements
-## Financial_Disclosures
-## Historical_Performance
 ## References
+
+- [SRC-001] Exact source title — Issuing body, 2026-07-27.
+  URL: https://example.gov.ph/path/to/record
+  Retrieved: 2026-11-25
+  Locator: p. 14, roll-call table
 ```
 
-Each factual paragraph or bullet group needs an inline numbered reference, such as `[1]`. If a section has not been reviewed, use a plain coverage marker such as `Not researched in the current dataset.` The importer omits these markers and does not treat them as evidence that no record exists.
+The source title and issuing body are preserved as written. A full ISO publication date is extracted when present; otherwise the original date wording is retained and `publication_date` remains unavailable. `Access` and `Access_Note` fields are also preserved. URLs must be HTTPS to qualify for indexing; the importer does not verify a page by making a network request.
 
-## Reference entries
+Only a claim explicitly labeled `Evidence_Status: VERIFIED` with resolved source IDs and complete, safe provenance becomes `verification_status: verified`. Other statuses such as `CORROBORATED`, `REPORTED`, `ALLEGED`, `DISPUTED`, or `UNVERIFIED` remain in the JSONL as `candidate_source`; Chroma excludes those chunks. A missing or malformed bibliography entry also keeps the affected claim out of the index while allowing other claims to be processed. Profile-level `verification_status: PARTIAL` and `verification_note` are retained on every chunk; they do not promote claims to verified.
 
-Number references per file. Keep one reference on one line and include the source details the importer needs:
+The importer preserves the claim ID, section, period, context, evidence status, source metadata, and source-file checksum. Research-limitations sections are not treated as factual claim chunks. Retrieved claim text remains untrusted reference data, not instructions.
 
-```md
-[1] Exact title — Issuing body | source_type=official_record | publication_date=2026-07-27 | retrieved_at=2026-11-25 | relevant_period=20th Congress, First Regular Session | locator=p. 14 | verification_status=verified | url=https://senate.gov.ph/path/to/record.pdf
-```
+## Legacy format
 
-Use `publication_date=not_stated` when the source does not provide a publication date. Allowed `source_type` values are `official_record`, `government_publication`, `secondary_news`, `research_organization`, and `other`. Describe secondary sources as secondary; never label them official. Only `verification_status=verified` entries can be indexed. The URL must be HTTPS. The importer does not visit URLs.
-
-Example claim:
-
-```md
-## Voting_Records
-
-- **Recorded vote:** The journal records the senator voting Yes on the cited measure [1].
-- **Relevant period:** 20th Congress, First Regular Session.
-- **Record locator:** Journal entry and roll-call table.
-```
-
-The bibliography is parsed into each matching claim chunk, not indexed as free-standing evidence. A claim without an inline reference, an undefined reference number, or an unverified reference stops ingestion.
+The importer continues to accept the earlier format with `senator_id`, the fixed 13 headings (`## Biography`, `## Political_History`, and so on), inline numeric citations such as `[1]`, and one-line bibliography entries with explicit provenance fields. Files marked `record_status: reference_sample` or `ingestion_status: do_not_ingest_as_complete_profile` are skipped.
 
 ## Ingest
 
@@ -61,6 +45,4 @@ The bibliography is parsed into each matching claim chunk, not indexed as free-s
 python tools/ingest_senator_records.py
 ```
 
-The command writes `data/corpus/processed/senator_chunks.jsonl`. Generated chunks are derived data and are ignored by Git. The separate `python tools/ingest_documents.py` flow continues to ingest reviewed original PDFs, HTML, and Markdown source documents from the corpus manifest.
-
-Reference-only examples must set `record_status: reference_sample` or `ingestion_status: do_not_ingest_as_complete_profile`; the importer skips those files. Do not put sample content into production answers.
+The command writes `data/corpus/processed/senator_chunks.jsonl`. The separate `python tools/ingest_documents.py` flow continues to process reviewed original PDFs, HTML, and Markdown source documents from the corpus manifest.
