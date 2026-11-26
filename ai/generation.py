@@ -26,6 +26,7 @@ MAX_GENERATION_INPUT_CHARS = 16000
 MAX_GENERATION_OUTPUT_TOKENS = 700
 MAX_LOCAL_CONTEXT_TOKENS = 8192
 MAX_ESTIMATED_PROMPT_TOKENS = MAX_LOCAL_CONTEXT_TOKENS - MAX_GENERATION_OUTPUT_TOKENS - 512
+_API_KEY_UNSET = object()
 
 SYSTEM_INSTRUCTIONS = """You are SEN’TO, an AI assistant that summarizes reviewed Philippine Senate public records. You are not a senator, an official representative, or a government service. Speak about senators in the third person. Never imitate or claim to be a senator. Answer only about the selected_subject. Historical records do not establish current roles or positions; state their dates and abstain from unsupported current assertions.
 
@@ -161,12 +162,18 @@ class OpenAIResponsesProvider:
         model: str | None = None,
         reasoning_effort: str | None = None,
         base_url: str | None = None,
+        api_key=_API_KEY_UNSET,
         client=None,
     ):
         self.model = model or os.environ.get("SENTO_OPENAI_MODEL", "gpt-6-luna")
         self.reasoning_effort = reasoning_effort or os.environ.get("SENTO_OPENAI_REASONING_EFFORT", "low")
         configured_base_url = base_url or os.environ.get("OPENAI_BASE_URL") or os.environ.get("SENTO_OPENAI_BASE_URL")
         self.base_url = configured_base_url.rstrip("/") if configured_base_url else None
+        # An explicit key, including an empty value, suppresses environment
+        # lookup. Streamlit passes its secret here so app runtime never falls
+        # back to a local process environment value.
+        self._explicit_api_key = api_key is not _API_KEY_UNSET
+        self._api_key = None if not self._explicit_api_key else api_key
         self.client = client
         self._client_lock = RLock()
         if self.reasoning_effort not in {"none", "low", "medium", "high", "xhigh", "max"}:
@@ -179,7 +186,8 @@ class OpenAIResponsesProvider:
     def _build_client(self):
         if self.client is not None:
             return self.client
-        if not os.environ.get("OPENAI_API_KEY"):
+        api_key = self._api_key if self._explicit_api_key else os.environ.get("OPENAI_API_KEY")
+        if not api_key:
             raise GenerationError("OPENAI_API_KEY is required when SENTO_GENERATOR_PROVIDER=openai.")
         try:
             from openai import OpenAI
@@ -188,7 +196,7 @@ class OpenAIResponsesProvider:
         client_options = {"timeout": 45.0, "max_retries": 0}
         if self.base_url:
             client_options["base_url"] = self.base_url
-        self.client = OpenAI(**client_options)
+        self.client = OpenAI(api_key=api_key, **client_options)
         return self.client
 
     def complete(self, instructions: str, input_text: str) -> str:

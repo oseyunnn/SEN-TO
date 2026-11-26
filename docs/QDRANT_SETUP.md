@@ -4,17 +4,15 @@ Qdrant replaces Chroma Cloud for the selected deployment. Local Chroma developme
 
 Endpoint: `https://d9b16d6d-d989-4240-9c8c-cecffb5f36e1.ap-northeast-2-0.aws.cloud.qdrant.io`
 
-## Next: privately check the app key
+## Runtime settings in Streamlit Cloud
 
-The repository includes [a settings template](qdrant.secrets.example.toml) with this endpoint and empty credentials. Copy it to `.streamlit/secrets.qdrant.toml` if that file does not already exist. Enter the full `sento-app` read-only key as `QDRANT_API_KEY` in your local editor. The masked dashboard value and key ID cannot be used as the credential. Do not paste the key into chat or a shell command. This file is ignored by Git. Leave `OPENAI_API_KEY` empty for the connection-only check.
+The hosted chatbot reads its RAG configuration directly from root-level values in the deployed app's Streamlit Settings → Secrets. It does not read `.env`, local TOML files, or process environment variables for chatbot settings. Use [the settings template](qdrant.secrets.example.toml) as a checklist, not as a runtime file. Paste the non-secret settings there and enter credentials directly in Streamlit Secrets.
 
-From the SEN’TO project folder, run:
+Set `SENTO_QDRANT_READ_ONLY_API_KEY` to the full `sento-app` read-only key and `OPENAI_API_KEY` to the OpenAI project key. Do not put the `sento-publisher` manage key or `QDRANT_API_KEY` in app Secrets. The app passes only the separately named read-only secret to the Qdrant client; confirm the key's Read Cluster role in the Qdrant dashboard. Keep the publisher key in the maintainer's separate publishing environment.
 
-```powershell
-.\.venv\Scripts\python.exe tools/check_rag.py --connection-only --secrets-file .streamlit/secrets.qdrant.toml
-```
+Leave `SENTO_QDRANT_COLLECTION` and `SENTO_RELEASE_ID` unset until an approved release has been published and checked. The committed review register approves zero claims, so there is no live evidence collection to configure yet. Missing cloud settings fail closed; the chat runtime cannot switch to local Chroma or Ollama.
 
-Expected output includes `"status": "connection_ok"`, `"model_calls": 0`, and `"writes": 0`. This checks database authentication through a read operation, not whether a release exists or whether the credential forbids writes. No evidence is uploaded, no model is contacted, and no credential is printed. A failed check returns a generic message; check key expiration, endpoint and cluster status privately. The command reads only the explicitly named TOML settings file and never auto-loads `.env`.
+The owner previously reported a successful connection-only read using the app key. That verified authentication at that time, not a published collection, write restrictions, or OpenAI model access.
 
 ## Review evidence before publication
 
@@ -29,7 +27,7 @@ The second command must fail until real approvals are entered. Do not create a f
 
 ## Publish using the maintenance key
 
-Prepare a separate ignored file `.streamlit/secrets.publisher.toml` from the template. Enter the `sento-publisher` manage key as `QDRANT_API_KEY` and your OpenAI credential as `OPENAI_API_KEY`. Add `SENTO_ACTIVE_COLLECTION = "NONE"` for the first publication; for future releases use the actual serving collection name. Set the candidate collection/release to the manifest's matching values. Keep the read-only app key in the runtime settings file.
+For the maintainer workflow, create a separate ignored publisher settings file. Enter the `sento-publisher` manage key as `QDRANT_API_KEY` and an OpenAI credential as `OPENAI_API_KEY`. Add `SENTO_ACTIVE_COLLECTION = "NONE"` for the first publication; for future releases use the actual serving collection name. Set the candidate collection/release to the manifest's matching values. Keep this publisher file out of Streamlit Secrets; the app uses only `SENTO_QDRANT_READ_ONLY_API_KEY`.
 
 ```powershell
 .\.venv\Scripts\python.exe tools/index_corpus.py --secrets-file .streamlit/secrets.publisher.toml --chunks data/releases/demo-r1/chunks.jsonl --release-manifest data/releases/demo-r1/manifest.json --dry-run
@@ -47,11 +45,11 @@ Dry run is offline and does not require model or database credentials. Apply sen
 - One reserved control point stores release/model/schema identity, review date, counts and `building`/`ready` state. It is excluded from every evidence query and from displayed coverage counts. The dashboard's total point count is therefore **expected evidence rows plus one**.
 - Runtime opens existing collections and validates identity, dimensions, cosine metric, ready state and total count. It has no write methods. Every query filters evidence kind, verified status, release and selected senator, plus the requested period. Returned payloads are checked again; the pipeline independently checks subject and Congress.
 - Qdrant cosine similarity is converted to SEN’TO's distance as `1 - similarity`; the existing maximum distance of 0.65 corresponds to a minimum similarity of 0.35. Evaluate the cutoff against reviewed questions before release.
-- Provider connections are cached without histories. Read/write requests are bounded by a 45-second client timeout. Maintenance scans use pagination; uploads use batches of 32. Existing conservative application payload limits remain in force; these are not advertised as Qdrant service quotas.
+- Provider connections are cached without histories. Exact repeat answers are cached only in the current session for ten minutes, up to 32 entries. The UI allows eight submissions per session/minute; cloud retrieval allows 30 requests per running app process/minute. These process/session controls do not replace OpenAI project spending limits and alerts. Read/write requests are bounded by a 45-second client timeout. Maintenance scans use pagination; uploads use batches of 32. Existing conservative application payload limits remain in force; these are not advertised as Qdrant service quotas.
 
 ## Deploy only after live review
 
-Add a valid OpenAI credential to the private runtime configuration for generation/embeddings. Verify the configured Responses model and reasoning option are available to that account. Complete the supported/unsupported question set and human sentence-support review. Then deploy the tested code to the branch watched by the existing Streamlit app, using `app.py` and Python 3.12. Enter the runtime template's values in Streamlit Settings → Secrets using the **read-only** key and the approved collection/release. Do not enter the publisher key there.
+Verify the configured Responses model and reasoning option against the OpenAI account before live evaluation. Complete the supported/unsupported question set and human sentence-support review. Then deploy the tested code to the branch watched by the existing Streamlit app, using `app.py` and Python 3.12. Enter the runtime template's values in Streamlit Settings → Secrets using the **read-only** key and the approved collection/release. Do not enter the publisher key. The app sends the current question and retrieved evidence to OpenAI for generation; query embeddings also use OpenAI, while vectors and source payloads live in Qdrant Cloud.
 
 Test another device with the laptop off, cloud restart, and sleep/wake behavior. Keep the previous release and matching settings for rollback. Free Qdrant clusters can suspend after one week without activity and be deleted after four weeks without reactivation, so retain the versioned reviewed package for recovery. No account signup or current cloud retention promise replaces those acceptance checks.
 

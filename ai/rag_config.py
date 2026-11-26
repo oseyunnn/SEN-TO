@@ -1,5 +1,6 @@
 """Validated deployment settings. Never loads .env or includes secrets in repr."""
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 import math
 import os
 from pathlib import Path
@@ -23,13 +24,47 @@ class RAGConfig:
     top_k: int
     max_distance: float
     qdrant_url: str = ''
+    generator_provider: str = 'ollama'
+    openai_model: str = 'gpt-6-luna'
+    openai_reasoning_effort: str = 'low'
+    openai_base_url: str = 'https://api.openai.com/v1'
+    qdrant_api_key: str = field(default='', repr=False, compare=False)
+    openai_api_key: str = field(default='', repr=False, compare=False)
+    chroma_api_key: str = field(default='', repr=False, compare=False)
+    global_request_limit: int = 30
+    global_request_window_seconds: float = 60.0
 
     @classmethod
-    def load(cls, *, require_credentials=True):
-        env = os.environ
+    def load(cls, *, require_credentials=True, require_cloud=False, settings=None):
+        """Load validated settings from a mapping or the process environment.
+
+        The Streamlit app passes ``st.secrets`` as a mapping. Maintenance CLIs
+        may continue to use environment variables and their explicitly loaded
+        private TOML file. Secrets are kept on the config object with repr off.
+        """
+        if require_cloud and settings is None:
+            raise ValueError('The hosted SEN’TO chat runtime requires Streamlit Secrets.')
+        if settings is None:
+            env = os.environ
+            qdrant_api_key = env.get('QDRANT_API_KEY', '')
+        else:
+            if not isinstance(settings, Mapping):
+                raise ValueError('Streamlit Secrets must be a root-level TOML mapping.')
+            env = {}
+            for key, value in settings.items():
+                if not key.startswith(('SENTO_', 'QDRANT_', 'CHROMA_', 'OPENAI_')):
+                    continue
+                if not isinstance(value, (str, int, float, bool)):
+                    raise ValueError('Provider settings must be root-level scalar Streamlit Secrets.')
+                env[key] = str(value)
+            # The public app intentionally accepts only the separately named
+            # read-only key. It never reads the publisher's QDRANT_API_KEY.
+            qdrant_api_key = env.get('SENTO_QDRANT_READ_ONLY_API_KEY', '')
         backend = env.get('SENTO_VECTOR_BACKEND', 'local')
         if backend not in {'local', 'chroma_cloud', 'qdrant_cloud'}:
             raise ValueError('SENTO_VECTOR_BACKEND must be local, chroma_cloud or qdrant_cloud.')
+        if require_cloud and backend != 'qdrant_cloud':
+            raise ValueError('The hosted SEN’TO chat runtime requires Qdrant Cloud.')
         cloud = backend != 'local'
         qdrant = backend == 'qdrant_cloud'
         collection_key = 'SENTO_QDRANT_COLLECTION' if qdrant else 'SENTO_CHROMA_COLLECTION'
@@ -41,25 +76,46 @@ class RAGConfig:
             dimensions = int(env.get('SENTO_EMBEDDING_DIMENSIONS', '1536' if provider == 'openai' else '0'))
             top_k = int(env.get('SENTO_RETRIEVAL_TOP_K', '5'))
             distance = float(env.get('SENTO_MAX_COSINE_DISTANCE', '.65'))
+            global_request_limit = int(env.get('SENTO_GLOBAL_REQUEST_LIMIT', '30'))
+            global_request_window = float(env.get('SENTO_GLOBAL_REQUEST_WINDOW_SECONDS', '60'))
         except ValueError:
-            raise ValueError('Embedding dimensions, top K and cosine distance must be numeric.') from None
+            raise ValueError('Embedding, retrieval and request-limit settings must be numeric.') from None
         if not 1 <= top_k <= 5 or not math.isfinite(distance) or not 0 <= distance <= 2:
             raise ValueError('Top K must be 1–5 and cosine distance must be 0–2.')
+        if not 1 <= global_request_limit <= 1000 or not math.isfinite(global_request_window) or not 1 <= global_request_window <= 3600:
+            raise ValueError('The shared request limit must be 1–1000 and its window 1–3600 seconds.')
         if provider == 'openai' and (model != 'text-embedding-3-small' or dimensions != 1536):
             raise ValueError('This release requires text-embedding-3-small with 1536 dimensions.')
         embedding_url = env.get('SENTO_EMBEDDING_BASE_URL', 'https://api.openai.com/v1')
+        openai_base_url = env.get('OPENAI_BASE_URL', 'https://api.openai.com/v1')
         if provider == 'openai':
             parsed = urlsplit(embedding_url)
             if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
                 raise ValueError('Hosted embeddings require an explicit HTTPS base URL without credentials or query parameters.')
+        parsed_generation_url = urlsplit(openai_base_url)
+        if (parsed_generation_url.scheme != 'https' or not parsed_generation_url.hostname
+                or parsed_generation_url.username or parsed_generation_url.password
+                or parsed_generation_url.query or parsed_generation_url.fragment):
+            raise ValueError('OpenAI generation requires an HTTPS base URL without credentials or query parameters.')
+        generator_provider = env.get('SENTO_GENERATOR_PROVIDER', 'ollama').strip().casefold()
+        if generator_provider not in {'openai', 'ollama'}:
+            raise ValueError("SENTO_GENERATOR_PROVIDER must be 'ollama' or 'openai'.")
+        openai_model = env.get('SENTO_OPENAI_MODEL', 'gpt-6-luna').strip()
+        reasoning_effort = env.get('SENTO_OPENAI_REASONING_EFFORT', 'low').strip().casefold()
+        if not openai_model:
+            raise ValueError('SENTO_OPENAI_MODEL must name a generation model.')
+        if reasoning_effort not in {'none', 'low', 'medium', 'high', 'xhigh', 'max'}:
+            raise ValueError('SENTO_OPENAI_REASONING_EFFORT is not supported.')
         if cloud:
             required = [collection_key, 'SENTO_RELEASE_ID']
             required += ['SENTO_QDRANT_URL'] if qdrant else ['CHROMA_TENANT', 'CHROMA_DATABASE']
             if require_credentials:
-                required += ['QDRANT_API_KEY' if qdrant else 'CHROMA_API_KEY', 'OPENAI_API_KEY']
+                qdrant_credential = ('SENTO_QDRANT_READ_ONLY_API_KEY' if settings is not None
+                                     else 'QDRANT_API_KEY')
+                required += [qdrant_credential if qdrant else 'CHROMA_API_KEY', 'OPENAI_API_KEY']
             if any(not env.get(key, '').strip() for key in required):
                 raise ValueError('Cloud configuration is incomplete. Check collection, release, connection settings and private credentials.')
-            if provider != 'openai' or env.get('SENTO_GENERATOR_PROVIDER') != 'openai':
+            if provider != 'openai' or generator_provider != 'openai':
                 raise ValueError('Cloud mode requires hosted OpenAI embeddings and generation; no local fallback is allowed.')
             if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_-]{1,125}[a-zA-Z0-9]', env[collection_key]):
                 raise ValueError('Invalid cloud collection name.')
@@ -73,29 +129,49 @@ class RAGConfig:
                 safe = False
             if not safe:
                 raise ValueError('SENTO_QDRANT_URL must be an HTTPS endpoint without credentials, path or query.')
-        return cls(backend, env.get(collection_key, ''), env.get('SENTO_RELEASE_ID', ''),
-                   provider, model, dimensions, embedding_url,
-                   env.get('CHROMA_TENANT', ''), env.get('CHROMA_DATABASE', ''), env.get('CHROMA_HOST', 'api.trychroma.com'),
-                   env.get('SENTO_CHROMA_PATH', str(Path(__file__).resolve().parents[1] / 'data/corpus/processed/chroma')),
-                   top_k, distance, qdrant_url)
+        return cls(
+            backend=backend,
+            collection=env.get(collection_key, ''),
+            release=env.get('SENTO_RELEASE_ID', ''),
+            embedding_provider=provider,
+            embedding_model=model,
+            dimensions=dimensions,
+            embedding_base_url=embedding_url,
+            tenant=env.get('CHROMA_TENANT', ''),
+            database=env.get('CHROMA_DATABASE', ''),
+            host=env.get('CHROMA_HOST', 'api.trychroma.com'),
+            path=env.get('SENTO_CHROMA_PATH', str(Path(__file__).resolve().parents[1] / 'data/corpus/processed/chroma')),
+            top_k=top_k,
+            max_distance=distance,
+            qdrant_url=qdrant_url,
+            generator_provider=generator_provider,
+            openai_model=openai_model,
+            openai_reasoning_effort=reasoning_effort,
+            openai_base_url=openai_base_url,
+            qdrant_api_key=qdrant_api_key,
+            openai_api_key=env.get('OPENAI_API_KEY', ''),
+            chroma_api_key=env.get('CHROMA_API_KEY', ''),
+            global_request_limit=global_request_limit,
+            global_request_window_seconds=global_request_window,
+        )
 
     def embedder(self):
         from ai.embeddings import OpenAIEmbeddingProvider, OllamaEmbeddingProvider
         if self.embedding_provider == 'openai':
-            return OpenAIEmbeddingProvider(api_key=os.environ.get('OPENAI_API_KEY'), base_url=self.embedding_base_url,
+            return OpenAIEmbeddingProvider(api_key=self.openai_api_key, base_url=self.embedding_base_url,
                                            model=self.embedding_model, dimensions=self.dimensions)
         return OllamaEmbeddingProvider(model=self.embedding_model)
 
     def cloud_client(self):
         if self.backend == 'qdrant_cloud':
             from qdrant_client import QdrantClient
-            return QdrantClient(url=self.qdrant_url, api_key=os.environ.get('QDRANT_API_KEY'),
+            return QdrantClient(url=self.qdrant_url, api_key=self.qdrant_api_key,
                                 port=443 if urlsplit(self.qdrant_url).port is None else urlsplit(self.qdrant_url).port,
                                 timeout=45, prefer_grpc=False, check_compatibility=False)
         import chromadb
         from chromadb.config import Settings
         return chromadb.CloudClient(tenant=self.tenant, database=self.database,
-                                    api_key=os.environ.get('CHROMA_API_KEY'), cloud_host=self.host,
+                                    api_key=self.chroma_api_key, cloud_host=self.host,
                                     settings=Settings(anonymized_telemetry=False))
 
     def metadata(self):
