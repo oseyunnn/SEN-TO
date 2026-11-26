@@ -86,16 +86,6 @@ def render(service):
     senator = service.get(st.session_state.senator_id)
     histories = st.session_state.histories
     history = histories.setdefault(senator["id"], [])
-    coverage = get_chatbot_service().coverage(senator['id'])
-    if coverage['status'] == 'reviewed_release':
-        st.caption(f"Selected subject: {coverage['count']} reviewed passages · Last review: {coverage['reviewed_at']} · Release: {coverage['release_id']}")
-    elif coverage['status'] == 'local_development':
-        st.caption('Local development dataset. No published reviewed release is configured.')
-    else:
-        st.warning('Source service configuration needs attention.' if coverage['status'] == 'configuration_error' else 'Source service is temporarily unavailable.')
-    selected_period = st.selectbox('Evidence period', ['All dated records', '20th Congress', '19th Congress'], key='chat_evidence_period')
-    congress_id = {'20th Congress': '20', '19th Congress': '19'}.get(selected_period)
-    st.caption('Ask a complete question each time. Earlier messages are not sent to the model. Historical evidence does not establish current status.')
     # Streamlit sessions can survive a code reload; do not keep rendering the
     # old simulated answers after retiring that path.
     if any(
@@ -132,6 +122,7 @@ def render(service):
                                 st.session_state.senator_id = target['id']
                                 st.rerun()
                     answer_loading_slot = st.empty()
+            if history:
                 st.html('<div class="disclaimer">Review each citation and its locator. The indexed records may be incomplete, and summaries are not official statements.</div>')
         with st.container(key="chat_loading"):
             loading_status_slot = st.empty()
@@ -179,7 +170,7 @@ def render(service):
                             loading_status_slot.html(_loading_status(stage))
 
                         try:
-                            result = _send_with_progress(senator["id"], question, report_progress, congress_id)
+                            result = _send_with_progress(senator["id"], question, report_progress)
                         finally:
                             if answer_loading_slot is not None:
                                 answer_loading_slot.empty()
