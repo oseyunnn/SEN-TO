@@ -93,11 +93,13 @@ class RAGPipeline:
         generator: Generator,
         validator: Validator | None = None,
         top_k: int = 5,
+        request_limiter=None,
     ):
         self.retriever = retriever
         self.generator = generator
         self.validator = validator or EvidenceValidator()
         self.top_k = min(MAX_RETRIEVED_CHUNKS, max(1, int(top_k)))
+        self.request_limiter = request_limiter
 
     def run(
         self,
@@ -138,6 +140,20 @@ class RAGPipeline:
                 ),
                 topic=topic,
                 validation={"status": "POLICY_LIMIT", "verified": False, "citation_ids": []},
+            )
+
+        if self.request_limiter is not None and not self.request_limiter.allow():
+            message = localized_text(
+                query,
+                "SEN’TO is handling many requests right now. Please try again in about a minute.",
+                "Maraming request ang pinoproseso ng SEN’TO ngayon. Subukan ulit pagkalipas ng halos isang minuto.",
+            )
+            return self._response(
+                answer=message,
+                label="RATE LIMIT",
+                limitation=message,
+                topic=topic,
+                validation={"status": "RATE_LIMITED", "verified": False, "citation_ids": []},
             )
 
         try:

@@ -8,11 +8,14 @@ from backend.policies import policy_violation
 
 
 class ChatbotService:
-    def __init__(self, senators=None, pipeline=None):
+    def __init__(self, senators=None, pipeline=None, *, settings=None, require_cloud=False):
         self.senators = senators or SenatorService()
         self.configuration_error = False
         try:
-            self.pipeline = pipeline or build_default_pipeline()
+            self.pipeline = pipeline or build_default_pipeline(
+                settings=settings,
+                require_cloud=require_cloud,
+            )
         except ValueError:
             self.pipeline = None
             self.configuration_error = True

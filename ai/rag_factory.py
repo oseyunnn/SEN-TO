@@ -14,6 +14,7 @@ from ai.pipeline import RAGPipeline
 from ai.validator import EvidenceValidator
 from ai.vector_store import ChromaVectorStore, VectorStoreError
 from ai.rag_config import RAGConfig
+from backend.security import SharedRequestLimiter
 from threading import RLock
 
 
@@ -86,25 +87,37 @@ def build_retriever(config, embedder=None):
     return retriever_type(embedder or config.embedder(), config.path, config)
 
 
-def build_default_pipeline(config=None) -> RAGPipeline:
-    config = config or RAGConfig.load()
-    ollama_base_url = os.environ.get("SENTO_OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+def build_default_pipeline(config=None, *, settings=None, require_cloud=False) -> RAGPipeline:
+    config = config or RAGConfig.load(settings=settings, require_cloud=require_cloud)
+    if require_cloud and config.backend != 'qdrant_cloud':
+        raise ValueError('The hosted SEN’TO chat runtime requires Qdrant Cloud.')
     embedder = config.embedder()
     retriever = build_retriever(config, embedder)
 
-    provider_name = os.environ.get("SENTO_GENERATOR_PROVIDER", "ollama").strip().casefold()
+    provider_name = config.generator_provider
     if provider_name == "ollama":
+        ollama_base_url = os.environ.get("SENTO_OLLAMA_BASE_URL", "http://127.0.0.1:11434")
         provider = OllamaChatProvider(base_url=ollama_base_url)
     elif provider_name == "openai":
-        provider = OpenAIResponsesProvider()
+        provider = OpenAIResponsesProvider(
+            model=config.openai_model,
+            reasoning_effort=config.openai_reasoning_effort,
+            base_url=config.openai_base_url,
+            api_key=config.openai_api_key,
+        )
     else:
         raise ValueError("SENTO_GENERATOR_PROVIDER must be 'ollama' or 'openai'.")
 
     generator = RAGAnswerGenerator(provider)
     top_k = config.top_k
+    request_limiter = (
+        SharedRequestLimiter(config.global_request_limit, config.global_request_window_seconds)
+        if config.backend == 'qdrant_cloud' else None
+    )
     return RAGPipeline(
         retriever=retriever,
         generator=generator,
         validator=EvidenceValidator(),
         top_k=top_k,
+        request_limiter=request_limiter,
     )

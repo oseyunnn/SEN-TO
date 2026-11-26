@@ -17,13 +17,14 @@ streamlit run app.py
 
 Open the local URL printed by Streamlit, normally http://localhost:8501. If Windows execution policy blocks activation, use `.\.venv\Scripts\python.exe -m pip install -r requirements.txt` and `.\.venv\Scripts\python.exe -m streamlit run app.py` directly. If Windows maps `python` to an unavailable Store alias, use `py` or your installed Python executable.
 
-The selected cloud deployment uses OpenAI embeddings/generation and Qdrant Cloud; local Chroma and Chroma Cloud remain supported. See [Qdrant setup and the private connection check](docs/QDRANT_SETUP.md), [evidence review](docs/RAG_SETUP.md), and [deployment status](docs/DEPLOYMENT_STATUS.md). The Qdrant cluster has been created by the owner; authenticated connection, reviewed publication and public rollout remain unverified.
+The selected cloud deployment uses OpenAI embeddings/generation and Qdrant Cloud; local Chroma and Chroma Cloud remain supported for development and maintenance. The hosted Chat runtime reads its settings from Streamlit Secrets and does not fall back to local files or process environment variables. It uses only the Qdrant read-only key. See [Qdrant setup and the private connection check](docs/QDRANT_SETUP.md), [evidence review](docs/RAG_SETUP.md), and [deployment status](docs/DEPLOYMENT_STATUS.md). The Qdrant cluster has been created by the owner; authenticated connection, reviewed publication and public rollout remain unverified.
 
 ## Features
 
 - Landing page, searchable reference directory, reusable profiles, configurable suggested questions, and independent chat histories per senator.
 - Developer-run ingestion of curated PDF, HTML, Markdown source documents, and claim-based per-senator research profiles into provenance-preserving chunks. Ingestion does not fetch URLs.
-- Local or cloud Chroma retrieval, Ollama/OpenAI embedding and generation adapters, and citation checks power Chat. Cloud publication requires a human-reviewed release; research labels alone do not authorize it.
+- Hosted Chat uses OpenAI query embeddings and generation with read-only Qdrant Cloud retrieval and citation checks. Local Chroma/Ollama adapters remain available for development and maintenance. Cloud publication requires a human-reviewed release; research labels alone do not authorize it.
+- Exact repeated questions can reuse a recent answer within the same session (up to 32 entries for 10 minutes). Questions are limited to eight per session per minute and thirty RAG requests per app process per minute; configure OpenAI project usage limits as the spending safeguard.
 - Explicit senator handoffs preserve separate session histories. Optional congressional filtering is checked in storage and again before generation. Every cited marker retains its source locator, including shared sources.
 - Two- or three-person comparisons with distinct selections, eight consistent categories, the same comparison period, and clear missing-data states.
 - The senator research files are ingestion inputs; Chat abstains until eligible claims are processed and indexed. Compare displays source-linked claims from the curated profiles and makes evidence gaps visible.
