@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Callable, Protocol
 
 from ai.embeddings import EmbeddingError
 from ai.generation import GenerationError
@@ -76,6 +76,16 @@ def _usable_evidence(document: dict) -> bool:
     )
 
 
+def _report_progress(progress_callback: Callable[[str], None] | None, stage: str) -> None:
+    if not progress_callback:
+        return
+    try:
+        progress_callback(stage)
+    except Exception:
+        # Progress is presentation-only and must not affect answer handling.
+        return
+
+
 class RAGPipeline:
     def __init__(
         self,
@@ -89,9 +99,18 @@ class RAGPipeline:
         self.validator = validator or EvidenceValidator()
         self.top_k = min(MAX_RETRIEVED_CHUNKS, max(1, int(top_k)))
 
-    def run(self, query: str, senator: dict, style: dict, relevant_period: str | None = None, congress_id: str | None = None) -> dict:
+    def run(
+        self,
+        query: str,
+        senator: dict,
+        style: dict,
+        relevant_period: str | None = None,
+        congress_id: str | None = None,
+        progress_callback: Callable[[str], None] | None = None,
+    ) -> dict:
         query = normalize_question(query)
         topic = classify(query)
+        _report_progress(progress_callback, "checking_scope")
         if requests_internal_prompt(query):
             return self._response(
                 answer=internal_prompt_refusal(query),
@@ -122,6 +141,7 @@ class RAGPipeline:
             )
 
         try:
+            _report_progress(progress_callback, "searching_sources")
             retrieved = self.retriever.retrieve(
                 query,
                 senator["id"],
@@ -131,6 +151,8 @@ class RAGPipeline:
             )
         except (EmbeddingError, VectorStoreError, GenerationError):
             return self._unavailable(topic, query)
+
+        _report_progress(progress_callback, "checking_evidence")
 
         context = []
         seen_chunks = set()
@@ -182,6 +204,7 @@ class RAGPipeline:
             )
 
         try:
+            _report_progress(progress_callback, "writing_answer")
             answer = self.generator.generate(query, senator, context, style)
             if not isinstance(answer, str) or len(answer) > MAX_ANSWER_CHARS:
                 return self._response(
@@ -196,6 +219,7 @@ class RAGPipeline:
                     validation={"status": "OUTPUT_LIMIT", "verified": False, "citation_ids": []},
                     retrieval_count=len(context),
                 )
+            _report_progress(progress_callback, "checking_citations")
             validation = self.validator.validate(answer, context)
         except (EmbeddingError, VectorStoreError, GenerationError):
             return self._unavailable(topic, query)
