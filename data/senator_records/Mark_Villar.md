@@ -479,4 +479,7 @@ Coverage: LIMITED.
   Retrieved: 2026-11-25
   Locator: October 30, 2025 filing date, December 31, 2024 valuation date, 14 real properties, and Himlay's Realty / Major Asset Ventures disclosures
 
-- [SRC-026] Mark Villar declares ₱1.2-billion net worth (search-result content; direct open returned 40
+- [SRC-026] Mark Villar declares ₱1.2-billion net worth (search-result content; direct open returned 403) — Manila Bulletin, 2025-10-30.
+  URL: https://mb.com.ph/
+  Retrieved: 2026-11-25
+  Locator: Real property (PHP 349,144,407) vs. personal property (PHP 912,193,410) breakdown

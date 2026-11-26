@@ -209,4 +209,210 @@ Coverage: PARTIAL.
 
 Coverage: PARTIAL.
 
-- [CLM-GRAFT-001] In 2
+- [CLM-GRAFT-001] In 2018, the Senate Blue Ribbon Committee investigated a PHP 120-million advertising agreement between the Department of Tourism (DOT) and People's Television Network (PTV) flagged by state auditors for potential conflict of interest, under which PHP 89.9 million went to the program *Kilos Pronto* hosted by Erwin T. Tulfo and produced by his brother Ben Tulfo's company; in 2021, the Office of the Ombudsman dismissed a Field Investigation Office graft complaint against former Tourism Secretary Wanda Tulfo Teo, Ben Tulfo, and PTV officials for lack of probable cause, with reporting not listing Erwin T. Tulfo as a personal respondent in that dismissed complaint.
+  Period: 2018–2021
+  Procedural_Status: DISMISSAL_OR_ACQUITTAL
+  Context: Ombudsman graft complaint against named respondents (Teo, Ben Tulfo, and PTV officials) dismissed for lack of probable cause; original COA audit report and Ombudsman resolution not directly inspected.
+  Evidence_Status: CORROBORATED
+  Sources: [SRC-005, SRC-014]
+
+- [CLM-GRAFT-002] Erwin T. Tulfo was convicted of four counts of libel in 2008 over newspaper columns accusing a Bureau of Customs official of corruption; during the 2025 senatorial election, a COMELEC division dismissed a disqualification petition raising the libel conviction and alleged U.S. citizenship, finding procedural defects in the combined pleading and ruling that Tulfo had completed serving his libel sentence on February 17, 2011 and that the five-year statutory disqualification period had expired on February 16, 2016.
+  Period: 2008–2025
+  Procedural_Status: DECISION
+  Context: Historical 2008 libel conviction confirmed; COMELEC division ruling held that the five-year election disqualification period had expired while dismissing the petition on procedural grounds without a substantive merits ruling on the citizenship allegation.
+  Evidence_Status: CORROBORATED
+  Sources: [SRC-005, SRC-011, SRC-012, SRC-013]
+
+- [CLM-GRAFT-003] According to VERA Files' 2025 candidate profile, Erwin T. Tulfo had been an undocumented worker in the United States in the 1980s, allegedly acquired U.S. citizenship in 1988, and renounced it in 2022 prior to his appointment as DSWD Secretary.
+  Period: 1980s–2022
+  Procedural_Status: INVESTIGATION
+  Context: Secondary reporting from VERA Files (`SRC-005`); sworn renunciation documents and official U.S./Philippine citizenship records were not directly inspected.
+  Evidence_Status: REPORTED
+  Sources: [SRC-005]
+
+### Research Limitations
+
+- The full 2008 libel judgment, proof of sentence completion, full 2025 COMELEC division decision (and any COMELEC en banc or Supreme Court appellate actions), original COA and Ombudsman records in the DOT–PTV matter, and Tulfo's formal citizenship renunciation documents were not directly inspected.
+  Research_Status: PARTIAL
+  Last_Checked: 2026-11-25
+
+## 10_Controversies
+
+Coverage: PARTIAL.
+
+- [CLM-CON-001] Erwin T. Tulfo has been the subject of recurring public controversies documented in VERA Files' 2025 profile (`SRC-005`), including criticism of his media involvement during the 2010 Manila hostage crisis, his 2008 four-count libel conviction, citizenship questions raised during his 2022 Commission on Appointments confirmation proceedings and 2025 COMELEC disqualification petitions, and the 2018 Senate inquiry into the PHP 120-million DOT–PTV advertising contract involving *Kilos Pronto*.
+  Period: 2008–2025
+  Procedural_Status: DECISION
+  Context: Distinct historical events summarized from VERA Files and corroborating news reports; must not be conflated into a single legal finding.
+  Evidence_Status: CORROBORATED
+  Sources: [SRC-005, SRC-007, SRC-011, SRC-014]
+
+- [CLM-CON-002] On June 4, 2026, as chairperson of the Senate Blue Ribbon Committee, Erwin T. Tulfo postponed a scheduled flood-control inquiry hearing until further notice without stating a reason or new date in the notice.
+  Period: 2026-06-04
+  Evidence_Status: REPORTED
+  Sources: [SRC-017]
+
+### Research Limitations
+
+- Official after-action reports on the 2010 Manila hostage crisis, complete pleadings in the 2025 disqualification cases, and subsequent Blue Ribbon Committee notices after June 4, 2026 were not retrieved.
+  Research_Status: PARTIAL
+  Last_Checked: 2026-11-25
+
+## 11_Public_Statements
+
+Coverage: PARTIAL.
+
+- [CLM-STMT-001] During his 2022 Commission on Appointments confirmation proceedings, Erwin T. Tulfo publicly defended his eligibility and qualifications to serve as DSWD Secretary amid questions regarding his citizenship history and 2008 libel conviction.
+  Period: 2022
+  Venue: Commission on Appointments / media statements
+  Evidence_Status: CORROBORATED
+  Sources: [SRC-005, SRC-007]
+
+- [CLM-STMT-002] On June 4, 2026, Erwin T. Tulfo issued a notice as Blue Ribbon Committee chair postponing the panel's scheduled flood-control hearing until further notice, and on September 23, 2026, he moved on the Senate impeachment-court floor to appeal the initial ruling on the vote threshold required to convict Vice President Sara Duterte.
+  Period: 2026-06-04–2026-09-23
+  Venue: Senate Blue Ribbon Committee / Senate Impeachment Court
+  Evidence_Status: REPORTED
+  Sources: [SRC-017, SRC-020]
+
+### Research Limitations
+
+- Verbatim Senate plenary transcripts, committee transcripts, and official press releases from Tulfo's office were not retrieved.
+  Research_Status: PARTIAL
+  Last_Checked: 2026-11-25
+
+## 12_Financial_Disclosures
+
+Coverage: PARTIAL.
+
+- [CLM-FIN-001] Erwin T. Tulfo's 2025 Statement of Assets, Liabilities, and Net Worth (SALN), as compiled by BetterGov's SALN tracker from ABS-CBN Network reporting (with a listed filing date of October 29, 2025 as of June 30, 2025), reports total assets of PHP 656,302,962, total liabilities of PHP 159,299,537, and a net worth of PHP 497,003,425.
+  Period: 2025-06-30–2025-10-29
+  Reporting_Period: June 30, 2025
+  Original_Declaration_Inspected: NO
+  Net_Worth: PHP 497,003,425
+  Context: Single underlying media source (BetterGov identifies ABS-CBN Network as its data source); original signed SALN and itemized schedules not inspected.
+  Evidence_Status: REPORTED
+  Sources: [SRC-016]
+
+### Research Limitations
+
+- The original signed 2025 SALN, official receiving stamp, real vs. personal property breakdown, business-interest disclosures, and spouse/relative disclosures were not inspected.
+  Research_Status: PARTIAL
+  Last_Checked: 2026-11-25
+
+## 13_Historical_Performance
+
+Coverage: LIMITED.
+
+- [CLM-PERF-001] Third-party legislative tracker BatasWatch records 115 captured 20th Congress Senate bills listing Erwin T. Tulfo as primary author through November 23, 2026 across social welfare, health, energy, environment, consumer protection, education, safety, and public accountability, while Senate.ph lists his recorded votes in two 2026 Senate President elections.
+  Period: 2025-06-30–2026-11-23
+  Context: Third-party filing count (`SRC-009`, `SRC-010`) and unverified tracker vote entries (`SRC-001`); filing volume does not measure committee passage, enactment, or plenary attendance.
+  Evidence_Status: CORROBORATED
+  Sources: [SRC-001, SRC-009, SRC-010]
+
+### Research Limitations
+
+- Official Senate roll-call attendance records for May 17, 2025–November 25, 2026, official Senate LIS bill-status totals, and committee hearing/report output counts were not retrieved.
+  Research_Status: LIMITED
+  Last_Checked: 2026-11-25
+
+## References
+
+- [SRC-001] Erwin Tulfo — 20th Congress profile and vote tracker (search result) — Senate.ph, 2026.
+  URL: https://senate.ph/
+  Retrieved: 2026-11-25
+  Locator: Current term (2025–2031), majority alignment, four committee chairmanships, and May 11 / June 17, 2026 Senate President vote entries (provenance caveat noted)
+
+- [SRC-002] 20th Congress committee chair tracker (search result) — Senate.ph, 2026-07.
+  URL: https://senate.ph/
+  Retrieved: 2026-11-25
+  Locator: June and July 2026 reorganization assignments (Blue Ribbon, Energy, Environment, and Social Justice, Welfare and Rural Development)
+
+- [SRC-003] Final 2025 senatorial ranking (search result) — Philstar.com, 2025-05.
+  URL: https://www.philstar.com/
+  Retrieved: 2026-11-25
+  Locator: Final COMELEC canvass ranking placing Tulfo 4th with 17,118,881 votes under Lakas–CMD
+
+- [SRC-004] 2025 senatorial election results (search result) — Rappler, 2025-05-17.
+  URL: https://www.rappler.com/
+  Retrieved: 2026-11-25
+  Locator: Partial May 17 tally cross-check
+
+- [SRC-005] Erwin Tulfo 2025 election profile (search result) — VERA Files, 2025.
+  URL: https://verafiles.org/
+  Retrieved: 2026-11-25
+  Locator: Broadcasting background, DSWD appointment, ACT-CIS service, 2008 libel conviction, 1980s–2022 U.S. citizenship history, 2010 Manila hostage crisis, and DOT–PTV contract summary
+
+- [SRC-006] Marcos picks Erwin Tulfo as DSWD chief (search result) — Philippine News Agency (PNA), 2022-05.
+  URL: https://www.pna.gov.ph/
+  Retrieved: 2026-11-25
+  Locator: May 2022 appointment as DSWD Secretary
+
+- [SRC-007] CA defers Tulfo's confirmation as DSWD secretary (search result) — Inquirer.net, 2022-11.
+  URL: https://www.inquirer.net/
+  Retrieved: 2026-11-25
+  Locator: November 2022 Commission on Appointments deferral over citizenship and libel questions
+
+- [SRC-008] Mga Batas — Authored and co-authored measures (search result) — Office of Sen. Erwin T. Tulfo, 2025–2026.
+  URL: https://erwintulfo.ph/
+  Retrieved: 2026-11-25
+  Locator: Official website legislative inventory
+
+- [SRC-009] Erwin T. Tulfo 20th Congress bills (search result) — BatasWatch, 2026-11-23.
+  URL: https://bataswatch.ph/
+  Retrieved: 2026-11-25
+  Locator: Individual 20th Congress Senate bill titles and filing dates (SBN-1175 through SBN-2511)
+
+- [SRC-010] Senate bill author profile — Erwin T. Tulfo (search result) — BatasWatch, 2026-11-23.
+  URL: https://bataswatch.ph/
+  Retrieved: 2026-11-25
+  Locator: Captured primary-author count of 115 bills through November 23, 2026 and topic breakdown
+
+- [SRC-011] COMELEC division dismisses disqualification case vs. Erwin Tulfo (search result) — Philippine News Agency (PNA), 2025.
+  URL: https://www.pna.gov.ph/
+  Retrieved: 2026-11-25
+  Locator: COMELEC division dismissal finding procedural defects and expiration of the five-year libel disqualification period on February 16, 2016
+
+- [SRC-012] Erwin Tulfo hit with 2nd disqualification case (search result) — Philstar.com, 2025-02.
+  URL: https://www.philstar.com/
+  Retrieved: 2026-11-25
+  Locator: February 2025 disqualification petition filing and grounds
+
+- [SRC-013] Disqualify Tulfo, Comelec asked (search result) — Inquirer.net, 2025.
+  URL: https://www.inquirer.net/
+  Retrieved: 2026-11-25
+  Locator: Petition grounds raising libel conviction and alleged U.S. citizenship
+
+- [SRC-014] Tulfo siblings, PTV execs cleared of P120 million graft (search result) — Philstar.com, 2021.
+  URL: https://www.philstar.com/
+  Retrieved: 2026-11-25
+  Locator: 2021 Ombudsman dismissal of Field Investigation Office complaint against Wanda Teo, Ben Tulfo, and PTV officials over the PHP 120-million DOT–PTV contract
+
+- [SRC-015] Consolidated into [SRC-005] — VERA Files 2025 election profile.
+  URL: https://verafiles.org/
+  Retrieved: 2026-11-25
+  Locator: Duplicate registry slot merged into [SRC-005]
+
+- [SRC-016] Erwin Tulfo SALN tracker (search result) — BetterGov SALN Tracker, 2025-10-29.
+  URL: https://saln.bettergov.ph/
+  Retrieved: 2026-11-25
+  Locator: 2025 SALN figures attributed to ABS-CBN Network (PHP 656,302,962 assets; PHP 159,299,537 liabilities; PHP 497,003,425 net worth)
+
+- [SRC-017] Blue Ribbon flood-control hearings postponed (search result) — GMA News Online, 2026-06-04.
+  URL: https://www.gmanetwork.com/news/
+  Retrieved: 2026-11-25
+  Locator: June 4, 2026 notice postponing scheduled Blue Ribbon flood-control hearing until further notice
+
+- [SRC-018] Palace recognizes new majority, backs Gatchalian (search result) — Philstar.com, 2026-06.
+  URL: https://www.philstar.com/
+  Retrieved: 2026-11-25
+  Locator: June 2026 Senate majority reorganization and committee leadership alignment
+
+- [SRC-019] Erwin Tulfo is new Blue Ribbon Committee chair (video result) — ABS-CBN News, 2026-06.
+  URL: https://www.abs-cbn.com/
+  Retrieved: 2026-11-25
+  Locator: Confirmation of Tulfo's selection as Senate Blue Ribbon Committee chair
+
+- [SRC-020] How senator-judges voted on threshold to convict Sara Duterte (search result) — GMA News Online, 2026-09-23.
+  URL: https://www.gmanetwork.com/news/
+  Retrieved: 2026-11-25
+  Locator: September 23, 2026 impeachment-court motion and 13-senator vote supporting Tulfo's appeal on the conviction threshold
