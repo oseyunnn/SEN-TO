@@ -1,6 +1,6 @@
 # SEN’TO — Kilalanin ang Senador Mo!
 
-A local educational civic prototype built with Python and Streamlit. It has Home, Chat, and Compare pages. Chat now calls the source-grounded RAG pipeline through the frontend adapter. The Compare adapter remains a frontend placeholder. The Community page has been removed.
+A local educational civic prototype built with Python and Streamlit. It has Home, Chat, and Compare pages. Chat calls the source-grounded RAG pipeline through the frontend adapter. Compare reads the curated senator Markdown profiles and shows source-linked records with visible coverage gaps. The Community page has been removed.
 
 ## Run locally
 
@@ -26,6 +26,7 @@ The selected cloud deployment uses OpenAI embeddings/generation and Qdrant Cloud
 - Local or cloud Chroma retrieval, Ollama/OpenAI embedding and generation adapters, and citation checks power Chat. Cloud publication requires a human-reviewed release; research labels alone do not authorize it.
 - Explicit senator handoffs preserve separate session histories. Optional congressional filtering is checked in storage and again before generation. Every cited marker retains its source locator, including shared sources.
 - Two- or three-person comparisons with distinct selections, eight consistent categories, the same comparison period, and clear missing-data states.
+- The senator research files are ingestion inputs; Chat abstains until eligible claims are processed and indexed. Compare displays source-linked claims from the curated profiles and makes evidence gaps visible.
 - Screenshot-derived colors, pill navigation, rounded white panels, profile portraits, chat bubbles, and responsive CSS.
 
 ## Data and limitations
@@ -34,7 +35,9 @@ The active RAG corpus has no newly processed senator chunks indexed yet. The lat
 
 The directory is not a verified current roster. The deployment pilot covers one majority and one minority senator only after dated authoritative verification. All research inputs remain intact. The assistant speaks in third person, and missing evidence produces abstention. Historical records do not establish current roles. Each question must stand on its own; displayed histories are not model memory.
 
-Portraits for the first three profiles are CSS windows into the user-supplied comparison mockup (`assets/images/design-reference.png`); they are not independently sourced official portraits. Remaining profiles have placeholders. Replace these with appropriately licensed individual assets for production. The CSS intentionally follows the supplied design, with native Streamlit forms/expanders where exact reproduction is impractical.
+The existing directory entries remain design examples, not a verified current roster. Compare reads the claim-based profiles in `data/senator_records/`; it displays only claims whose `Evidence_Status` is `VERIFIED` and whose source provenance is complete. The selected period filter uses the claim period recorded in Markdown and may fall back to year-level matching when exact dates are unavailable. Other claims and missing categories remain visible as coverage gaps; they do not establish that no record or activity exists. The future assistant should speak about senators in third person and preserve source attribution and uncertainty.
+
+Portraits for the first three profiles are CSS windows into the user-supplied comparison mockup (`assets/images/design-reference.png`). The remaining 21 profiles use formal portraits downloaded from the Senate of the Philippines' [20th Congress Senators directory](https://senate.gov.ph/senators/20-congress-senators); each portrait's source and retrieval date are recorded in `data/senators.json`, and the local files are in `assets/images/senators/`. Reuse rights for these images have not been independently verified, so confirm them before production distribution. The CSS intentionally follows the supplied design, with native Streamlit forms/expanders where exact reproduction is impractical.
 
 The former Community storage/services are retained as unused backend code; existing SQLite data is preserved. They are not initialized or exposed by the app. Previously, Community identity was guest-only and session-based. Refreshing or opening a new session may reset identity and chat histories; persisted posts and comments remain. Likes are protected against duplicates per session, not per real person. Names are public and unauthenticated. Moderation is a small rule-based filter and can miss harmful text or reject benign wording. Reports are stored locally for manual review; no moderation dashboard or live moderation team is connected. Share links only work against the same app instance/database.
 
@@ -81,4 +84,4 @@ The optional `tools/browser_check.cjs` requires Playwright (not an application d
 
 ## Design mapping
 
-The landing page uses native Streamlit buttons for navigation. Chat and Compare navigation use a styled radio; senator cards use native buttons with portrait HTML; welcome prompts use buttons; the conversation input uses `st.chat_input`; source information and profiles use popovers. The pages use frontend adapter seams in `frontend/api.py` for the directory, Chat, and Compare data. Comparison uses native senator selectboxes and an HTML grid with section anchors. Open the congressional-period control to switch between two and three senators. Smaller screens use stacked layouts. The supplied screenshots guide the appearance; backend and evidence work remain outside this frontend implementation.
+The landing page uses native Streamlit buttons for navigation. Chat and Compare navigation use a styled radio; senator cards use native buttons with portrait HTML; welcome prompts use buttons; the conversation input uses `st.chat_input`; source information and profiles use popovers. The pages use frontend adapter seams in `frontend/api.py` for the directory, Chat, and Compare data. Comparison uses native senator and period controls, the shared Markdown-backed categories, source links, and a responsive side-by-side grid. The supplied screenshots guide the appearance.

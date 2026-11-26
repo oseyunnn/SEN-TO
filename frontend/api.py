@@ -32,28 +32,19 @@ def get_chatbot_service():
     return _cached_chatbot_service(digest)
 
 
-def send_chat_message(senator_id, message, congress_id=None):
+def send_chat_message(senator_id, message, congress_id=None, progress_callback=None):
     """Run one question through the selected-subject RAG pipeline."""
-    return get_chatbot_service().ask(message, senator_id, **({'congress_id': congress_id} if congress_id else {}))
+    service = get_chatbot_service()
+    options = {}
+    if congress_id:
+        options["congress_id"] = congress_id
+    if progress_callback:
+        options["progress_callback"] = progress_callback
+    return service.ask(message, senator_id, **options)
 
 
-def get_comparison_records(directory, senator_ids):
-    """Build the current local demo shape; replace with a comparison API call."""
-    # TODO: Replace this adapter with GET /api/compare once the backend is ready.
-    from backend.senator_service import SECTIONS, UNAVAILABLE
+def get_comparison_records(directory, senator_ids, period="20th_congress"):
+    """Read source-linked comparison claims from the curated Markdown profiles."""
+    from backend.comparison_service import ComparisonService
 
-    return [
-        {
-            "senator": directory.get(senator_id),
-            "period": "20th Congress · 2025–2028",
-            "sections": {
-                key: directory.get(senator_id).get("profile", {}).get(key, {
-                    "status": "not_available",
-                    "content": UNAVAILABLE,
-                    "sources": [],
-                })
-                for key in SECTIONS
-            },
-        }
-        for senator_id in senator_ids
-    ]
+    return ComparisonService(senators=directory).compare(senator_ids, period=period)

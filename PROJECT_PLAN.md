@@ -15,7 +15,7 @@ The next release should be a **limited real project**, not a claim that the enti
 - Twenty-four dated directory entries and research profiles. These do not establish current membership, bloc affiliation or verified profile facts.
 - `data/mock_documents.json` remains a legacy fixture and is not evidence. The Chat frontend adapter now calls the RAG pipeline, provider adapters, and citation checks. The index currently has no reviewed records, so factual requests abstain before generation.
 - The local ingestion layer parses the current claim-based per-senator research profiles, maps each profile to the app’s senator directory, and attaches `SRC-*` references and claim evidence statuses to chunks. Only explicitly `VERIFIED` claims with complete safe provenance are indexable. The older fixed-section format remains supported.
-- Profile, comparison, and source UI that deliberately shows the absence of verified data.
+- The reference-only Francis Escudero file is intentionally skipped by ingestion. Compare reads claim-based Markdown profiles and displays provenance-complete `VERIFIED` claims across shared categories, with source links and explicit gaps.
 - No authentication or account creation. The guest display-name control and unused state have been removed. Chat history is held in Streamlit session state.
 - Home/Landing, Chat and Compare pages are implemented.
 - Legacy Community backend and SQLite code remain in the repository, but the current app does not expose or initialize them.
@@ -91,6 +91,8 @@ The owner subsequently selected Qdrant Cloud because Chroma signups were unavail
 **Remaining exit work:** Add reviewed source records, then evaluate answer support, conflict/staleness handling, period selection, injection resistance, and representative abstentions. Do not claim comprehensive or fully semantically verified answers before this review.
 
 ### Phase 4 — Make Compare useful and fair
+
+**Implementation status:** The Compare page now uses eight shared categories and reads the local Markdown profiles. It supports a 20th Congress window through the profile cutoff and an all-periods view, shows source titles, issuing bodies, dates, and locators, and excludes claims without both `VERIFIED` evidence status and complete provenance. Missing and out-of-window records are shown as gaps. The research profiles remain partial and uneven; this UI does not establish comprehensive coverage or a live roster.
 
 1. Compare senators only on the same categories, date range, and evidence rules. Begin with the researched subset and show which of the 24-seat target has coverage.
 2. Organize the view into a short set of clear sections, such as profiles, selected bills/resolutions, committees, recorded votes, statements/positions, and sources. Provide section navigation and usable mobile stacking.

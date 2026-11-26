@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 from backend.senator_service import SenatorService
 from ai.rag_factory import build_default_pipeline
 from backend.chat_scope import scope_response
@@ -15,7 +17,7 @@ class ChatbotService:
             self.pipeline = None
             self.configuration_error = True
 
-    def ask(self, question, senator_id, congress_id=None):
+    def ask(self, question, senator_id, congress_id=None, progress_callback: Callable[[str], None] | None = None):
         question = normalize_question(question)
         senator = self.senators.get(senator_id)
         guarded = policy_violation(question) or requests_internal_prompt(question) or requests_bulk_retrieval(question)
@@ -27,7 +29,12 @@ class ChatbotService:
                     'label': 'RAG CONFIGURATION ERROR', 'topic': 'sources', 'citations': [], 'retrieval_count': 0,
                     'limitation': 'The maintainer must check deployment settings. No model answer was generated.',
                     'validation': {'status': 'CONFIGURATION_ERROR', 'verified': False, 'citation_ids': []}}
-        return self.pipeline.run(question, senator, self.senators.style(senator_id), congress_id=congress_id)
+        run_options = {}
+        if congress_id:
+            run_options["congress_id"] = congress_id
+        if progress_callback:
+            run_options["progress_callback"] = progress_callback
+        return self.pipeline.run(question, senator, self.senators.style(senator_id), **run_options)
 
     def coverage(self, senator_id):
         if self.configuration_error:
@@ -45,7 +52,6 @@ class ChatbotService:
                     'reviewed_at': metadata.get('reviewed_at'), 'release_id': config.release}
         except Exception:
             return {'status': 'service_unavailable', 'count': None, 'reviewed_at': None}
-
     def indexed_passage_count(self):
         if self.pipeline is None:
             return None
