@@ -5,6 +5,8 @@ from ai.validator import is_safe_source_url
 
 
 _STATUS_LABELS = {
+    "RAG CONFIGURATION ERROR": "Deployment settings need attention. No model answer was generated.",
+    "CHAT SCOPE": "Choose a single senator before asking about their records.",
     "SOURCE-GROUNDED AI SUMMARY": "Citation links and provenance passed automated checks. Claim-level semantic support has not been independently verified.",
     "NO REVIEWED EVIDENCE": "No suitable reviewed passage was found. This does not mean no public record exists.",
     "ANSWER NOT VALIDATED": "The generated answer was withheld because it did not pass citation checks.",
@@ -52,6 +54,6 @@ def _source_details(response):
     st.caption("Incomplete or conflicting evidence should remain visibly qualified.")
 
 
-def sources(response):
-    if st.button("▤  Sources & evidence"):
+def sources(response, key=None):
+    if st.button("▤  Sources & evidence", key=key):
         _source_details(response)

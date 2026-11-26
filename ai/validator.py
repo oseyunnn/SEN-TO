@@ -118,9 +118,10 @@ def format_citations(documents: list[dict], citation_ids: list[str] | None = Non
             continue
         for source in document.get("citation_sources", []):
             source_id = str(source.get("source_id") or f"{document.get('chunk_id')}:{source.get('source_url')}")
-            if source_id in seen:
+            marker_key = (evidence_id, source_id, source.get("locator"))
+            if marker_key in seen:
                 continue
-            seen.add(source_id)
+            seen.add(marker_key)
             url = source.get("source_url")
             citations.append({
                 "citation_id": source_id,
