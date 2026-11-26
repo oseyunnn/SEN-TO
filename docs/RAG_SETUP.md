@@ -1,75 +1,100 @@
-# Local RAG setup
+# RAG setup and publication
 
-The current local stack uses ChromaDB for persistent vector storage and Ollama for embeddings. It does not call a hosted embedding service. The Chroma `PersistentClient` writes under `data/corpus/processed/chroma/`; that directory is generated data and stays out of Git.
+**Selected deployment:** Qdrant Cloud. Follow [QDRANT_SETUP.md](QDRANT_SETUP.md) for the owner's cluster, private credential check, settings and publication commands. The Chroma-specific configuration below remains an alternative; the evidence-review requirements apply to both backends.
 
-The Streamlit Chat page now calls the RAG pipeline through `frontend/api.py`. The current corpus is empty, so the pipeline abstains before generation and makes no LLM request until reviewed passages are indexed. See [SECURITY_ASSESSMENT.md](SECURITY_ASSESSMENT.md) for input, prompt, context, rate, and output controls and their limitations.
+Use Python 3.12 and install requirements.txt. Local development remains available; cloud mode uses hosted embeddings and generation plus a persistent Chroma Cloud collection. Runtime opens an existing collection and never publishes evidence. The protected .env is not loaded by the app or tooling.
 
-## Configure Ollama embeddings
+## Cloud settings
 
-Install and start Ollama, then download the configured embedding model:
+Enter root-level TOML values in the existing Streamlit app's Settings → Secrets. Never commit a real secrets file. Replace placeholders privately:
+
+```toml
+SENTO_VECTOR_BACKEND = "chroma_cloud"
+SENTO_CHROMA_COLLECTION = "sento_demo_r1_openai_te3small_1536"
+SENTO_RELEASE_ID = "demo-r1"
+SENTO_EMBEDDING_PROVIDER = "openai"
+SENTO_EMBEDDING_MODEL = "text-embedding-3-small"
+SENTO_EMBEDDING_DIMENSIONS = "1536"
+SENTO_EMBEDDING_BASE_URL = "https://api.openai.com/v1"
+CHROMA_HOST = "api.trychroma.com"
+CHROMA_TENANT = "<tenant>"
+CHROMA_DATABASE = "sento-demo"
+CHROMA_API_KEY = "<private database credential>"
+SENTO_GENERATOR_PROVIDER = "openai"
+OPENAI_API_KEY = "<private OpenAI credential>"
+OPENAI_BASE_URL = "https://api.openai.com/v1"
+SENTO_OPENAI_MODEL = "gpt-6-luna"
+SENTO_OPENAI_REASONING_EFFORT = "low"
+SENTO_RETRIEVAL_TOP_K = "5"
+SENTO_MAX_COSINE_DISTANCE = "0.65"
+```
+
+Model access must be checked before rollout. An existing gateway credential is not assumed to work at OpenAI. Embedding and generation endpoints are configured separately. A model or dimension change requires a newly embedded collection. Missing cloud settings, incompatible collections or service failures never fall back to local storage or Ollama.
+
+The backend uses [Chroma CloudClient](https://docs.trychroma.com/docs/run-chroma/clients), an explicit [cosine vector schema](https://docs.trychroma.com/cloud/schema/schema-basics), and application-supplied vectors with embedding_function=None. Read-only behavior is enforced by runtime code; verify actual credential permissions in the provider dashboard. Keep publisher credentials with the maintainer. Streamlit exposes root secrets as environment variables; see [secrets management](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/secrets-management).
+
+## Review and prepare a release
+
+The pilot is one majority and one minority senator, selected only after current dated authoritative checks. All 24 research profiles remain available for future work. VERIFIED in a profile means importer eligibility, not independent verification.
+
+Run the importer and inspect original sources. Fill data/releases/demo-r1/review.json with subjects, reviewed_at and decisions. Each approval needs:
+
+Also supply a scope_review array with exactly two entries. Each entry needs senator_id, bloc (majority or minority), reviewer, reviewed_at, as_of, and source. The source object needs title, issuing_body, source_url, publication_date when available, retrieved_at, relevant_period, locator and verification_status=verified. This records the dated original-source basis for pilot selection; it is distinct from the claim approvals below.
+
+```json
+{
+  "senator_id": "<directory ID>",
+  "claim_id": "<exact CLM ID>",
+  "decision": "approved",
+  "reviewer": "<human reviewer>",
+  "reviewed_at": "YYYY-MM-DD",
+  "source_sha256": "<SHA-256 of exact profile bytes>",
+  "congress_id": "20",
+  "period_basis": "<original record and locator establishing Congress>",
+  "sources": [{"source_url": "<original HTTPS URL>", "locator": "<exact locator>"}]
+}
+```
+
+Use 19, 20, or historical for the normalized field. Preserve the raw period in citations. Record excluded/conflicting/stale decisions separately; only explicit approvals export. The profile checksum is not an original-webpage checksum. Retain archived-original checksums separately. A changed profile requires review again.
+
+```sh
+python tools/ingest_senator_records.py
+python tools/prepare_corpus_release.py --chunks data/corpus/processed/senator_chunks.jsonl --review-register data/releases/demo-r1/review.json --output-dir data/releases/demo-r1
+```
+
+Output includes chunks, review register and manifest with approved IDs, source/importer identity, checksums and expanded per-subject counts. Export refuses missing approvals, changed bytes, incomplete provenance and out-of-scope associations. The committed starter register approves nothing and deliberately fails this gate. Never substitute a fictitious reviewer to make it pass.
+
+## Publish a new candidate
+
+In the maintainer environment, use matching deployment settings and set SENTO_ACTIVE_COLLECTION to the serving collection, or NONE for first publication. Set SENTO_CHROMA_COLLECTION to a new candidate name. Do not change the running app yet.
+
+```sh
+python tools/index_corpus.py --chunks data/releases/demo-r1/chunks.jsonl --release-manifest data/releases/demo-r1/manifest.json --dry-run
+python tools/index_corpus.py --chunks data/releases/demo-r1/chunks.jsonl --release-manifest data/releases/demo-r1/manifest.json --apply
+python tools/check_rag.py --chunks data/releases/demo-r1/chunks.jsonl --release-manifest data/releases/demo-r1/manifest.json
+```
+
+Dry run validates local hashes, approved IDs, counts, provider identity, destination and [Cloud size limits](https://docs.trychroma.com/cloud/quotas-limits) without connecting or embedding. Apply creates a collection; it cannot overwrite an existing name or the declared active collection. Writes use batches of 32. Failed uploads remain building, which runtime rejects. Retry with a new candidate name and matching manifest; never refresh a live collection with one senator's subset. The checker paginates IDs and verifies complete metadata without paid model calls. Ready means upload verification passed, not human answer review.
+
+Run five supported and three unsupported questions per enabled senator, covering English, Filipino and Taglish. Record sentence-by-sentence human support checks in questions.json. Tune retrieval against these reviewed questions. Verify isolation, stale/current distinctions, citations, outages and injection handling. Only then select the new collection/release in app settings. Retain the prior collection for rollback and restore its matching collection, release and model settings together if needed.
+
+## Local development
+
+Set SENTO_VECTOR_BACKEND=local, SENTO_EMBEDDING_PROVIDER=ollama and SENTO_GENERATOR_PROVIDER=ollama; unset cloud collection/release/model overrides. Default Ollama URL is http://127.0.0.1:11434, embedding model embeddinggemma, chat model gemma4.
 
 ```sh
 ollama pull embeddinggemma
-```
-
-The local API defaults to `http://127.0.0.1:11434`. Configure these environment variables when needed:
-
-```text
-SENTO_OLLAMA_BASE_URL=http://127.0.0.1:11434
-SENTO_OLLAMA_EMBED_MODEL=embeddinggemma
-SENTO_CHROMA_PATH=data/corpus/processed/chroma
-SENTO_MAX_COSINE_DISTANCE=0.65
-```
-
-The Ollama embedding model name is part of the Chroma collection name. Changing it creates a separate collection rather than mixing vectors from different models. Tune the cosine-distance cutoff using reviewed questions; an empty retrieval is safer than passing weak matches to the generator. See the [Ollama embedding API](https://docs.ollama.com/api/embed) and [Chroma persistent client](https://docs.trychroma.com/docs/run-chroma/clients) documentation.
-
-## Configure answer generation
-
-Generation defaults to the local Ollama chat endpoint. Install the configured model with `ollama pull gemma4`. The provider is replaceable independently from the embedder and vector store.
-
-To select OpenAI GPT-6 Luna, set these process environment variables:
-
-```text
-SENTO_GENERATOR_PROVIDER=openai
-OPENAI_API_KEY=<your key, supplied through your local secrets manager>
-OPENAI_BASE_URL=https://aiki-labs.up.railway.app/api/v1
-SENTO_OPENAI_MODEL=gpt-6-luna
-SENTO_OPENAI_REASONING_EFFORT=low
-```
-
-The adapter passes `OPENAI_BASE_URL` (or `SENTO_OPENAI_BASE_URL`) to the OpenAI SDK and sends Responses API requests to `{base_url}/responses`. The configured gateway must support the OpenAI Responses API and the model name in `SENTO_OPENAI_MODEL`; if its API supports only Chat Completions, this adapter will need a compatible provider implementation. The current default model remains `gpt-6-luna`; set it to a model name supported by your gateway. Ollama remains the separate embedding provider.
-
-The app reads process environment variables and does not load `.env` itself. If your values are stored in a standard shell-compatible `.env`, make them available to the launch process from the project directory, then start Streamlit:
-
-```sh
-set -a
-source .env
-set +a
+ollama pull gemma4
+python tools/index_corpus.py
 streamlit run app.py
 ```
 
-This loads the variables into that shell session; it does not change the file. On another operating system, use that environment's standard way to export the variables before launching the app.
+Bare indexing is a local maintenance command that replaces stale rows. Runtime reads a local index only if it exists. Generated files are ignored by Git and are not deployed with the repository.
 
-When OpenAI is selected and evidence is retrieved, SEN’TO sends the current question, selected senator name, retrieved passage text, and passage citation metadata to the configured API base URL. It does not send the rest of the session history. The request sets `store=false`, but this does not control retention by a third-party gateway; check that provider's data policy before sending records. Do not commit API keys. `.env.example` contains variable names only, and the app does not read `.env` automatically. Make the variables available in the process environment before starting Streamlit.
+## Data flow and operation
 
-The generator sends only the current question and bounded retrieved evidence; it does not receive Streamlit's prior chat history. Local generation is configured with an 8,192-token context and a 700-token output ceiling; a conservative tokenizer-independent estimate rejects inputs that appear to exceed the prompt budget. OpenAI requests set a 700-token output ceiling and a 45-second client timeout. These values bound resource use but do not verify factual support. The UI currently limits a session to eight questions per rolling minute; a future server endpoint must apply its own shared rate limit because per-session limits can be bypassed by creating another session.
+Questions go to the hosted embedding API; vectors and subject/period filters go to Chroma. Publication sends reviewed passages, vectors and citation metadata to Chroma. Generation sends the current question, selected subject and bounded evidence to the configured Responses endpoint with store=False, a 45-second timeout, no retries and a 700-token output cap. This does not guarantee zero provider retention. Earlier session messages are not sent; questions must stand on their own. No transcript, account, analytics or telemetry storage was added.
 
-## Build the index
+Cached services share clients/connections only. Histories remain separate per senator in each session and may reset on disconnect or restart. Explicit handoffs make no embedding/generation call and do not transfer history or resubmit questions. Uncovered subjects show zero reviewed passages; missing evidence is not proof of inactivity. Citation validation verifies marker/provenance integrity, not semantic entailment.
 
-After adding and reviewing source records, create normalized chunks and build the local index:
-
-```sh
-python tools/ingest_documents.py
-python tools/ingest_senator_records.py
-python tools/index_corpus.py
-```
-
-Either chunk JSONL file may be empty; the index command combines both and fails clearly if there are no chunks. It indexes only verified chunks with a verified senator association and at least one verified citation. It skips unverified, unassociated, and uncited material.
-
-To select a different index path or chunk file:
-
-```sh
-python tools/index_corpus.py --index /path/to/local/chroma --chunks data/corpus/processed/senator_chunks.jsonl
-```
-
-Do not put API keys in these local-index settings. The model-generation provider is selected separately by `SENTO_GENERATOR_PROVIDER`; see the RAG progress document for provider and data-flow status.
+Configure spending limits and alerts privately and name a maintenance/correction owner. Test cloud wake, restart and another-device access with the laptop off before declaring deployment complete. See [DEPLOYMENT_STATUS.md](DEPLOYMENT_STATUS.md) for outstanding gates.

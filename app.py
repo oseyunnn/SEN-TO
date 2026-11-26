@@ -19,7 +19,7 @@ def main():
             st.session_state[key] = st.session_state[key]
     defaults = {"page": "HOME",
                 "senator_id": senators.senators[0]["id"],
-                "histories": {}, "guest_name": "Guest reader",
+                "histories": {},
                 "compare_ids": [s["id"] for s in senators.senators[:3]],
                 "comparison_count": st.session_state.get("saved_comparison_count", 3)}
     for key, value in defaults.items():

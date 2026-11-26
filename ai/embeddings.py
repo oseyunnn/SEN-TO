@@ -6,6 +6,7 @@ import json
 import math
 import os
 from typing import Protocol
+from threading import RLock
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -19,6 +20,51 @@ class EmbeddingProvider(Protocol):
     def model_name(self) -> str: ...
 
     def embed(self, texts: list[str]) -> list[list[float]]: ...
+
+
+class OpenAIEmbeddingProvider:
+    """Explicit hosted embeddings, with bounded requests and strict response validation."""
+    provider_name = "openai"
+
+    def __init__(self, *, api_key, base_url, model="text-embedding-3-small", dimensions=1536, client=None):
+        if model != "text-embedding-3-small" or dimensions != 1536:
+            raise ValueError("Hosted embeddings require text-embedding-3-small / 1536.")
+        self._model, self.dimensions = model, dimensions
+        self.client = client
+        self._client_lock = RLock()
+        self._api_key, self.base_url = api_key, base_url
+
+    @property
+    def model_name(self):
+        return self._model
+
+    def embed(self, texts):
+        if not texts:
+            return []
+        if any(not isinstance(text, str) or not text.strip() for text in texts):
+            raise EmbeddingError("Embedding inputs must be nonempty strings.")
+        try:
+            with self._client_lock:
+                if self.client is None:
+                    if not self._api_key:
+                        raise EmbeddingError("Hosted embedding credentials are missing.")
+                    from openai import OpenAI
+                    self.client = OpenAI(api_key=self._api_key, base_url=self.base_url, timeout=45, max_retries=0)
+            response = self.client.embeddings.create(model=self.model_name, input=texts, dimensions=self.dimensions)
+            rows = response.data
+            if len(rows) != len(texts) or sorted(row.index for row in rows) != list(range(len(texts))):
+                raise EmbeddingError("Unexpected embedding count or indexes.")
+            vectors = []
+            for row in sorted(rows, key=lambda row: row.index):
+                vector = row.embedding
+                if len(vector) != self.dimensions or any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in vector):
+                    raise EmbeddingError("Malformed embedding dimensions or numeric values.")
+                vectors.append([float(v) for v in vector])
+            return vectors
+        except EmbeddingError:
+            raise
+        except Exception:
+            raise EmbeddingError("The hosted embedding service is unavailable.") from None
 
 
 class OllamaEmbeddingProvider:

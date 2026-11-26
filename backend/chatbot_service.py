@@ -1,16 +1,54 @@
 from backend.senator_service import SenatorService
 from ai.rag_factory import build_default_pipeline
+from backend.chat_scope import scope_response
+from backend.security import normalize_question, requests_internal_prompt, requests_bulk_retrieval
+from backend.policies import policy_violation
 
 
 class ChatbotService:
     def __init__(self, senators=None, pipeline=None):
         self.senators = senators or SenatorService()
-        self.pipeline = pipeline or build_default_pipeline()
+        self.configuration_error = False
+        try:
+            self.pipeline = pipeline or build_default_pipeline()
+        except ValueError:
+            self.pipeline = None
+            self.configuration_error = True
 
-    def ask(self, question, senator_id):
-        return self.pipeline.run(question, self.senators.get(senator_id), self.senators.style(senator_id))
+    def ask(self, question, senator_id, congress_id=None):
+        question = normalize_question(question)
+        senator = self.senators.get(senator_id)
+        guarded = policy_violation(question) or requests_internal_prompt(question) or requests_bulk_retrieval(question)
+        scoped = None if guarded else scope_response(question, senator, self.senators.senators)
+        if scoped:
+            return scoped
+        if self.configuration_error:
+            return {'answer': 'The answer service is unavailable because deployment settings are incomplete or inconsistent.',
+                    'label': 'RAG CONFIGURATION ERROR', 'topic': 'sources', 'citations': [], 'retrieval_count': 0,
+                    'limitation': 'The maintainer must check deployment settings. No model answer was generated.',
+                    'validation': {'status': 'CONFIGURATION_ERROR', 'verified': False, 'citation_ids': []}}
+        return self.pipeline.run(question, senator, self.senators.style(senator_id), congress_id=congress_id)
+
+    def coverage(self, senator_id):
+        if self.configuration_error:
+            return {'status': 'configuration_error', 'count': None, 'reviewed_at': None}
+        retriever = self.pipeline.retriever
+        config = getattr(retriever, 'config', None)
+        if not config or config.backend == 'local':
+            return {'status': 'local_development', 'count': None, 'reviewed_at': None}
+        try:
+            store = retriever._get_store()
+            metadata = store.metadata
+            import json
+            counts = metadata.get('expected_counts') if config.backend == 'qdrant_cloud' else json.loads(metadata.get('coverage_json', '{}'))
+            return {'status': 'reviewed_release', 'count': counts.get(senator_id, 0),
+                    'reviewed_at': metadata.get('reviewed_at'), 'release_id': config.release}
+        except Exception:
+            return {'status': 'service_unavailable', 'count': None, 'reviewed_at': None}
 
     def indexed_passage_count(self):
+        if self.pipeline is None:
+            return None
         count_indexed = getattr(self.pipeline.retriever, "count_indexed", None)
         if not callable(count_indexed):
             return None

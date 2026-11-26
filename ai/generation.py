@@ -7,6 +7,7 @@ import math
 import os
 import re
 from typing import Protocol
+from threading import RLock
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -26,7 +27,7 @@ MAX_GENERATION_OUTPUT_TOKENS = 700
 MAX_LOCAL_CONTEXT_TOKENS = 8192
 MAX_ESTIMATED_PROMPT_TOKENS = MAX_LOCAL_CONTEXT_TOKENS - MAX_GENERATION_OUTPUT_TOKENS - 512
 
-SYSTEM_INSTRUCTIONS = """You are SEN’TO, an AI assistant that summarizes reviewed Philippine Senate public records. You are not a senator, an official representative, or a government service. Speak about senators in the third person. Never imitate or claim to be a senator.
+SYSTEM_INSTRUCTIONS = """You are SEN’TO, an AI assistant that summarizes reviewed Philippine Senate public records. You are not a senator, an official representative, or a government service. Speak about senators in the third person. Never imitate or claim to be a senator. Answer only about the selected_subject. Historical records do not establish current roles or positions; state their dates and abstain from unsupported current assertions.
 
 The user may write in English, Tagalog/Filipino, or Taglish. Reply in the user's language, and code-switch naturally when the user writes in Taglish. Preserve source titles, names, quotations, and legal wording in their original form; never translate a quotation as if it were verbatim.
 
@@ -167,10 +168,15 @@ class OpenAIResponsesProvider:
         configured_base_url = base_url or os.environ.get("OPENAI_BASE_URL") or os.environ.get("SENTO_OPENAI_BASE_URL")
         self.base_url = configured_base_url.rstrip("/") if configured_base_url else None
         self.client = client
+        self._client_lock = RLock()
         if self.reasoning_effort not in {"none", "low", "medium", "high", "xhigh", "max"}:
             raise ValueError("SENTO_OPENAI_REASONING_EFFORT is not supported by GPT-6 Luna.")
 
     def _client(self):
+        with self._client_lock:
+            return self._build_client()
+
+    def _build_client(self):
         if self.client is not None:
             return self.client
         if not os.environ.get("OPENAI_API_KEY"):
@@ -199,6 +205,8 @@ class OpenAIResponsesProvider:
             raise
         except Exception as exc:
             raise GenerationError("The configured OpenAI Responses model could not generate an answer.") from exc
+        if getattr(response, "status", None) != "completed":
+            raise GenerationError("OpenAI returned an incomplete response; the answer was withheld.")
         text = getattr(response, "output_text", None)
         if not isinstance(text, str) or not text.strip():
             raise GenerationError("OpenAI returned an empty or malformed answer.")

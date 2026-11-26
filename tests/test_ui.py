@@ -6,6 +6,25 @@ from frontend.api import send_chat_message
 APP = Path(__file__).resolve().parents[1] / "app.py"
 
 
+def test_handoff_preserves_histories_without_resubmitting(tmp_path, monkeypatch):
+    monkeypatch.setenv('SENTO_CHROMA_PATH', str(tmp_path / 'empty-index'))
+    at = AppTest.from_file(str(APP)).run()
+    at.button(key='nav_home_start').click().run()
+    at.chat_input(key='chat_prompt').set_value('Tell me about Raffy Tulfo').run()
+    assert not at.exception
+    assert at.session_state['senator_id'] == 'risa-hontiveros'
+    history = at.session_state['histories']['risa-hontiveros']
+    assert history[1]['response']['type'] == 'SWITCH_SUBJECT'
+    at.button(key='switch_risa-hontiveros_1_raffy-tulfo').click().run()
+    assert not at.exception
+    assert at.session_state['histories']['raffy-tulfo'] == []
+    at.button(key='select_senator_idrisa-hontiveros').click().run()
+    assert at.session_state['histories']['risa-hontiveros'] == history
+    at.chat_input(key='chat_prompt').set_value('What bills are recorded?').run()
+    assert not at.exception
+    assert len(at.session_state['histories']['risa-hontiveros']) == 4
+
+
 def test_chat_adapter_uses_chatbot_service(monkeypatch):
     class FakeChatbot:
         def __init__(self):

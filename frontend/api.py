@@ -12,16 +12,29 @@ def get_senator_directory():
     return SenatorService()
 
 
-def get_chatbot_service():
+import hashlib
+import os
+import streamlit as st
+
+
+@st.cache_resource(show_spinner=False)
+def _cached_chatbot_service(settings_key):
     """Build the stateless RAG service for the current chat request."""
     from backend.chatbot_service import ChatbotService
 
     return ChatbotService()
 
 
-def send_chat_message(senator_id, message):
+def get_chatbot_service():
+    # Hash credentials so rotations invalidate clients without exposing values in cache keys.
+    names = sorted(k for k in os.environ if k.startswith(('SENTO_', 'CHROMA_', 'OPENAI_', 'QDRANT_')))
+    digest = hashlib.sha256(repr([(k, os.environ[k]) for k in names]).encode()).hexdigest()
+    return _cached_chatbot_service(digest)
+
+
+def send_chat_message(senator_id, message, congress_id=None):
     """Run one question through the selected-subject RAG pipeline."""
-    return get_chatbot_service().ask(message, senator_id)
+    return get_chatbot_service().ask(message, senator_id, **({'congress_id': congress_id} if congress_id else {}))
 
 
 def get_comparison_records(directory, senator_ids):

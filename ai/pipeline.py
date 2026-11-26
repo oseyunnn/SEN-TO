@@ -42,7 +42,7 @@ MAX_ANSWER_CHARS = 5000
 
 
 class Retriever(Protocol):
-    def retrieve(self, query: str, senator_id: str, top_k: int = 5, relevant_period: str | None = None) -> list[dict]: ...
+    def retrieve(self, query: str, senator_id: str, top_k: int = 5, relevant_period: str | None = None, congress_id: str | None = None) -> list[dict]: ...
 
 
 class Generator(Protocol):
@@ -89,7 +89,7 @@ class RAGPipeline:
         self.validator = validator or EvidenceValidator()
         self.top_k = min(MAX_RETRIEVED_CHUNKS, max(1, int(top_k)))
 
-    def run(self, query: str, senator: dict, style: dict, relevant_period: str | None = None) -> dict:
+    def run(self, query: str, senator: dict, style: dict, relevant_period: str | None = None, congress_id: str | None = None) -> dict:
         query = normalize_question(query)
         topic = classify(query)
         if requests_internal_prompt(query):
@@ -127,6 +127,7 @@ class RAGPipeline:
                 senator["id"],
                 top_k=self.top_k,
                 relevant_period=relevant_period,
+                **({"congress_id": congress_id} if congress_id else {}),
             )
         except (EmbeddingError, VectorStoreError, GenerationError):
             return self._unavailable(topic, query)
@@ -138,6 +139,10 @@ class RAGPipeline:
             if not isinstance(document, dict) or not _belongs_to_senator(document, senator["id"]):
                 continue
             if not _usable_evidence(document):
+                continue
+            if relevant_period and document.get("relevant_period") != relevant_period:
+                continue
+            if congress_id and document.get("congress_id") != congress_id:
                 continue
             chunk_id = document.get("chunk_id")
             if not isinstance(chunk_id, str) or not chunk_id or chunk_id in seen_chunks:
@@ -152,9 +157,6 @@ class RAGPipeline:
             sources = []
             for source in document["citation_sources"][:2]:
                 bounded_source = dict(source)
-                for key in ("title", "issuing_body", "source_type", "relevant_period", "locator"):
-                    if isinstance(bounded_source.get(key), str):
-                        bounded_source[key] = bounded_source[key][:240]
                 sources.append(bounded_source)
             context.append({
                 **document,
