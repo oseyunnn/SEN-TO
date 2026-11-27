@@ -147,7 +147,7 @@ def render(service):
                 source_link = '<a href="?view=compare&amp;sources=1" target="_self">Sources</a>'
                 st.html(
                     '<nav class="compare-links" aria-label="Comparison sections">'
-                    + "".join(f'<a href="#compare-{key}" target="_self">{escape(label)}</a>' for key, label in nav_items)
+                    + "".join(f'<a href="?view=compare#compare-{key}" target="_self">{escape(label)}</a>' for key, label in nav_items)
                     + source_link
                     + "</nav>"
                 )
