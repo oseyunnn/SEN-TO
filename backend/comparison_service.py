@@ -171,6 +171,34 @@ def _matches_congress_window(period: str) -> bool:
     return min(years) <= 2026 and max(years) >= 2025
 
 
+_STATUS_RANK = {
+    "VERIFIED": 0,
+    "OFFICIAL_STATEMENT": 2,
+    "PARTIALLY_VERIFIED": 2,
+    "DOCUMENTED": 2,
+    "PENDING_INVESTIGATION": 3,
+    "CONTESTED": 3,
+    "DISPUTED": 3,
+    "ALLEGED": 3,
+    "UNVERIFIED": 4,
+    "UNSPECIFIED": 5,
+}
+
+
+def _claim_sort_key(indexed_claim: tuple[int, dict]) -> tuple[int, int]:
+    """Rank verified claims with verified provenance first, then other documented statuses."""
+    index, claim = indexed_claim
+    evidence_status = str(claim.get("evidence_status") or "UNSPECIFIED").upper()
+    verification_status = str(claim.get("verification_status") or "").lower()
+    if evidence_status == "VERIFIED" and verification_status == "verified":
+        rank = 0
+    elif evidence_status == "VERIFIED":
+        rank = 1
+    else:
+        rank = _STATUS_RANK.get(evidence_status, 4)
+    return (rank, index)
+
+
 class ComparisonService:
     def __init__(self, senators=None, records_dir: Path | None = None):
         self.senators = senators or SenatorService()
@@ -194,23 +222,33 @@ class ComparisonService:
                     claim for claim in claims
                     if claim["section"] in category["sections"]
                 ]
-                verified_claims = [
+                if period == "20th_congress":
+                    window_claims = [
+                        claim for claim in category_claims
+                        if _matches_congress_window(claim["period"])
+                    ]
+                else:
+                    window_claims = list(category_claims)
+                shown_claims = [
+                    claim for _, claim in sorted(enumerate(window_claims), key=_claim_sort_key)
+                ]
+                verified_in_window = [
+                    claim for claim in shown_claims
+                    if claim["evidence_status"] == "VERIFIED"
+                    and claim["verification_status"] == "verified"
+                ]
+                verified_all = [
                     claim for claim in category_claims
                     if claim["evidence_status"] == "VERIFIED"
                     and claim["verification_status"] == "verified"
                 ]
-                if period == "20th_congress":
-                    shown_claims = [
-                        claim for claim in verified_claims
-                        if _matches_congress_window(claim["period"])
-                    ]
-                else:
-                    shown_claims = verified_claims
                 sections[category_key] = {
                     "title": category["title"],
                     "claims": shown_claims,
-                    "verified_outside_period": len(verified_claims) - len(shown_claims),
-                    "not_verified_count": len(category_claims) - len(verified_claims),
+                    "verified_count": len(verified_in_window),
+                    "outside_period_count": len(category_claims) - len(shown_claims),
+                    "verified_outside_period": len(verified_all) - len(verified_in_window),
+                    "not_verified_count": len(shown_claims) - len(verified_in_window),
                 }
 
             all_sources = {
@@ -228,7 +266,8 @@ class ComparisonService:
                 "research_depth": profile_claim.get("profile_research_depth") or "not stated",
                 "research_note": profile_claim.get("profile_verification_note") or "",
                 "sections": sections,
-                "verified_claim_count": sum(len(section["claims"]) for section in sections.values()),
+                "total_claim_count": sum(len(section["claims"]) for section in sections.values()),
+                "verified_claim_count": sum(section["verified_count"] for section in sections.values()),
                 "source_count": len(all_sources),
             })
         return output

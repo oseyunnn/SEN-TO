@@ -69,11 +69,16 @@ class RAGConfig:
         qdrant = backend == 'qdrant_cloud'
         collection_key = 'SENTO_QDRANT_COLLECTION' if qdrant else 'SENTO_CHROMA_COLLECTION'
         provider = env.get('SENTO_EMBEDDING_PROVIDER', 'openai' if cloud else 'ollama')
-        if provider not in {'openai', 'ollama'}:
-            raise ValueError('SENTO_EMBEDDING_PROVIDER must be openai or ollama.')
-        model = env.get('SENTO_EMBEDDING_MODEL', 'text-embedding-3-small' if provider == 'openai' else env.get('SENTO_OLLAMA_EMBED_MODEL', 'embeddinggemma'))
+        if provider not in {'openai', 'ollama', 'local_hash'}:
+            raise ValueError('SENTO_EMBEDDING_PROVIDER must be openai, local_hash or ollama.')
+        default_model = (
+            'text-embedding-3-small'
+            if provider == 'openai'
+            else ('sento-hash-ngram-v1' if provider == 'local_hash' else env.get('SENTO_OLLAMA_EMBED_MODEL', 'embeddinggemma'))
+        )
+        model = env.get('SENTO_EMBEDDING_MODEL', default_model)
         try:
-            dimensions = int(env.get('SENTO_EMBEDDING_DIMENSIONS', '1536' if provider == 'openai' else '0'))
+            dimensions = int(env.get('SENTO_EMBEDDING_DIMENSIONS', '1536' if provider in {'openai', 'local_hash'} else '0'))
             top_k = int(env.get('SENTO_RETRIEVAL_TOP_K', '5'))
             distance = float(env.get('SENTO_MAX_COSINE_DISTANCE', '.65'))
             global_request_limit = int(env.get('SENTO_GLOBAL_REQUEST_LIMIT', '30'))
@@ -86,6 +91,8 @@ class RAGConfig:
             raise ValueError('The shared request limit must be 1–1000 and its window 1–3600 seconds.')
         if provider == 'openai' and (model != 'text-embedding-3-small' or dimensions != 1536):
             raise ValueError('This release requires text-embedding-3-small with 1536 dimensions.')
+        if provider == 'local_hash' and (model != 'sento-hash-ngram-v1' or dimensions != 1536):
+            raise ValueError('local_hash embeddings require sento-hash-ngram-v1 with 1536 dimensions.')
         embedding_url = env.get('SENTO_EMBEDDING_BASE_URL', 'https://api.openai.com/v1')
         openai_base_url = env.get('OPENAI_BASE_URL', 'https://api.openai.com/v1')
         if provider == 'openai':
@@ -115,8 +122,8 @@ class RAGConfig:
                 required += [qdrant_credential if qdrant else 'CHROMA_API_KEY', 'OPENAI_API_KEY']
             if any(not env.get(key, '').strip() for key in required):
                 raise ValueError('Cloud configuration is incomplete. Check collection, release, connection settings and private credentials.')
-            if provider != 'openai' or generator_provider != 'openai':
-                raise ValueError('Cloud mode requires hosted OpenAI embeddings and generation; no local fallback is allowed.')
+            if provider not in {'openai', 'local_hash'} or generator_provider != 'openai':
+                raise ValueError('Cloud mode requires hosted OpenAI generation and non-Ollama embeddings; no local fallback is allowed.')
             if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_-]{1,125}[a-zA-Z0-9]', env[collection_key]):
                 raise ValueError('Invalid cloud collection name.')
         qdrant_url = env.get('SENTO_QDRANT_URL', '').rstrip('/')
@@ -156,10 +163,12 @@ class RAGConfig:
         )
 
     def embedder(self):
-        from ai.embeddings import OpenAIEmbeddingProvider, OllamaEmbeddingProvider
+        from ai.embeddings import OpenAIEmbeddingProvider, OllamaEmbeddingProvider, LocalHashEmbeddingProvider
         if self.embedding_provider == 'openai':
             return OpenAIEmbeddingProvider(api_key=self.openai_api_key, base_url=self.embedding_base_url,
                                            model=self.embedding_model, dimensions=self.dimensions)
+        if self.embedding_provider == 'local_hash':
+            return LocalHashEmbeddingProvider(model=self.embedding_model, dimensions=self.dimensions)
         return OllamaEmbeddingProvider(model=self.embedding_model)
 
     def cloud_client(self):

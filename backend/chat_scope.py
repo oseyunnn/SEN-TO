@@ -55,7 +55,7 @@ def scope_response(question, selected, directory):
         answer = 'Which senator do you mean: ' + ', '.join(s['name'] for s in targets) + '? Please use a full name.'
         kind = 'CLARIFY_SUBJECT'
     elif comparison or len(others) > 1:
-        answer = f"This chat focuses on Senator {selected['name']}. Please ask about one senator at a time. The Compare page does not yet provide sourced comparisons."
+        answer = f"This chat focuses on Senator {selected['name']}. Please ask about one senator at a time, or use the Compare page to view sourced records side by side."
         kind = 'SINGLE_SUBJECT_SCOPE'
     else:
         answer = f"This chat focuses on Senator {selected['name']}. To ask about Senator {targets[0]['name']}, please switch to their chat."

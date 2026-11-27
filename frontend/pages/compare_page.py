@@ -1,4 +1,5 @@
 from html import escape
+import re
 
 import streamlit as st
 
@@ -6,6 +7,126 @@ from ai.validator import is_safe_source_url
 from backend.comparison_service import COMPARISON_CATEGORIES, PERIODS
 from frontend.api import get_comparison_records
 from frontend.components.senator_card import avatar
+
+
+def _format_inline_markdown(text: str) -> str:
+    """Render escaped inline Markdown (links, bold, italic, code) safely."""
+    placeholders: list[str] = []
+
+    def _stash(html_snippet: str) -> str:
+        token = f"\x00MD{len(placeholders)}\x00"
+        placeholders.append(html_snippet)
+        return token
+
+    def _replace_link(match: re.Match) -> str:
+        label = escape(match.group(1))
+        url = match.group(2).strip()
+        if is_safe_source_url(url):
+            return _stash(
+                f'<a href="{escape(url, quote=True)}" target="_blank" rel="noopener noreferrer">{label} ↗</a>'
+            )
+        return label
+
+    text = re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", _replace_link, text)
+    escaped = escape(text)
+    escaped = re.sub(r"`([^`]+)`", r"<code>\1</code>", escaped)
+    escaped = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", escaped)
+    escaped = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"<em>\1</em>", escaped)
+    for index, snippet in enumerate(placeholders):
+        escaped = escaped.replace(f"\x00MD{index}\x00", snippet)
+    return escaped
+
+
+def _render_markdown_html(text: str) -> str:
+    """Convert claim Markdown text into safe HTML supporting headings, lists, tables, and links."""
+    lines = str(text or "").splitlines()
+    blocks: list[str] = []
+    i = 0
+    while i < len(lines):
+        line = lines[i].rstrip()
+        stripped = line.strip()
+        if not stripped:
+            i += 1
+            continue
+
+        # Markdown table
+        if (
+            stripped.startswith("|")
+            and i + 1 < len(lines)
+            and re.match(r"^\s*\|[\s:|-]+\|\s*$", lines[i + 1])
+        ):
+            headers = [cell.strip() for cell in stripped.strip("|").split("|")]
+            i += 2
+            rows_html = []
+            while i < len(lines) and lines[i].strip().startswith("|"):
+                cells = [cell.strip() for cell in lines[i].strip().strip("|").split("|")]
+                rows_html.append(
+                    "<tr>" + "".join(f"<td>{_format_inline_markdown(cell)}</td>" for cell in cells) + "</tr>"
+                )
+                i += 1
+            head_html = "<tr>" + "".join(f"<th>{_format_inline_markdown(h)}</th>" for h in headers) + "</tr>"
+            blocks.append(f'<table class="comparison-md-table"><thead>{head_html}</thead><tbody>{"".join(rows_html)}</tbody></table>')
+            continue
+
+        # Headings
+        heading_match = re.match(r"^(#{1,6})\s+(.+)$", stripped)
+        if heading_match:
+            level = min(6, max(4, len(heading_match.group(1)) + 2))
+            blocks.append(f"<h{level} class=\"comparison-md-heading\">{_format_inline_markdown(heading_match.group(2))}</h{level}>")
+            i += 1
+            continue
+
+        # Bulleted list
+        if re.match(r"^[-*+]\s+", stripped):
+            items = []
+            while i < len(lines) and re.match(r"^\s*[-*+]\s+", lines[i]):
+                item_text = re.sub(r"^\s*[-*+]\s+", "", lines[i]).strip()
+                items.append(f"<li>{_format_inline_markdown(item_text)}</li>")
+                i += 1
+            blocks.append(f'<ul class="comparison-md-list">{"".join(items)}</ul>')
+            continue
+
+        # Numbered list
+        if re.match(r"^\d+\.\s+", stripped):
+            items = []
+            while i < len(lines) and re.match(r"^\s*\d+\.\s+", lines[i]):
+                item_text = re.sub(r"^\s*\d+\.\s+", "", lines[i]).strip()
+                items.append(f"<li>{_format_inline_markdown(item_text)}</li>")
+                i += 1
+            blocks.append(f'<ol class="comparison-md-list">{"".join(items)}</ol>')
+            continue
+
+        # Paragraph
+        para_lines = [stripped]
+        i += 1
+        while i < len(lines):
+            nxt = lines[i].strip()
+            if not nxt or nxt.startswith("#") or nxt.startswith("|") or re.match(r"^([-*+]|\d+\.)\s+", nxt):
+                break
+            para_lines.append(nxt)
+            i += 1
+        blocks.append(f"<p>{_format_inline_markdown(' '.join(para_lines))}</p>")
+
+    return "".join(blocks) or "<p>Claim text unavailable.</p>"
+
+
+def _status_badge(claim: dict) -> str:
+    raw_status = str(claim.get("evidence_status") or "UNSPECIFIED").strip().upper()
+    verification_status = str(claim.get("verification_status") or "").strip().lower()
+    if raw_status == "VERIFIED" and verification_status == "verified":
+        return '<span class="comparison-badge comparison-badge-verified">VERIFIED</span>'
+    if raw_status == "VERIFIED":
+        return '<span class="comparison-badge comparison-badge-verified-candidate">VERIFIED · CANDIDATE SOURCE</span>'
+    if raw_status in {"PARTIALLY_VERIFIED", "DOCUMENTED", "OFFICIAL_STATEMENT"}:
+        label = raw_status.replace("_", " ")
+        return f'<span class="comparison-badge comparison-badge-partial">{escape(label)}</span>'
+    if raw_status in {"ALLEGED", "CONTESTED", "DISPUTED", "PENDING_INVESTIGATION"}:
+        label = raw_status.replace("_", " ")
+        return f'<span class="comparison-badge comparison-badge-contested">{escape(label)}</span>'
+    if raw_status == "UNSPECIFIED":
+        return '<span class="comparison-badge comparison-badge-neutral">CLASSIFICATION NOT SPECIFIED</span>'
+    label = raw_status.replace("_", " ")
+    return f'<span class="comparison-badge comparison-badge-neutral">{escape(label)}</span>'
 
 
 def _source_link(source, index):
@@ -38,22 +159,30 @@ def _source_link(source, index):
 
 
 def _claim_html(claim):
-    statement = escape(str(claim.get("text") or "Claim text unavailable."))
+    statement_html = _render_markdown_html(claim.get("text") or "Claim text unavailable.")
     period = escape(str(claim.get("period") or "Period not stated"))
-    details = "".join(
+    detail_items = claim.get("details", [])
+    detail_html = "".join(
         f'<p class="comparison-detail"><strong>{escape(str(item["label"]))}:</strong> '
-        f'{escape(str(item["value"]))}</p>'
-        for item in claim.get("details", [])
+        f'{_format_inline_markdown(str(item["value"]))}</p>'
+        for item in detail_items
     )
+    if len(detail_items) > 2:
+        detail_block = (
+            f'<details class="comparison-details-box"><summary>Record details ({len(detail_items)})</summary>'
+            f'{detail_html}</details>'
+        )
+    else:
+        detail_block = detail_html
     sources = "".join(
         _source_link(source, index)
         for index, source in enumerate(claim.get("sources", []), start=1)
     )
     return (
         '<article class="comparison-claim">'
-        f'<p>{statement}</p>{details}'
+        f'<div class="comparison-claim-body">{statement_html}</div>{detail_block}'
         f'<div class="comparison-claim-meta"><span>Period: {period}</span>'
-        '<span class="comparison-verified">VERIFIED</span></div>'
+        f'{_status_badge(claim)}</div>'
         f'{sources}</article>'
     )
 
@@ -63,15 +192,17 @@ def _category_cell(record, category_key):
     name = escape(str(record["senator"]["name"]))
     claims = section["claims"]
     count = len(claims)
-    summary = f'<p class="comparison-coverage">{count} verified {"record" if count == 1 else "records"} in this window.</p>'
-    if not claims:
-        summary += '<p class="comparison-gap">No verified record is present in these files for this category and period. This gap does not show that no activity occurred.</p>'
-    if section["verified_outside_period"]:
-        outside = section["verified_outside_period"]
-        summary += f'<p class="comparison-gap">{outside} verified {"record is" if outside == 1 else "records are"} in other periods.</p>'
-    if section["not_verified_count"]:
-        pending = section["not_verified_count"]
-        summary += f'<p class="comparison-gap">{pending} other {"claim is" if pending == 1 else "claims are"} not shown because the evidence status or source provenance is not VERIFIED and complete.</p>'
+    verified_count = section.get("verified_count", 0)
+    other_count = count - verified_count
+    if count:
+        breakdown = f" ({verified_count} verified, {other_count} other status)" if other_count else f" ({verified_count} verified)"
+        summary = f'<p class="comparison-coverage">{count} documented {"record" if count == 1 else "records"} in this window{breakdown}.</p>'
+    else:
+        summary = '<p class="comparison-coverage">0 documented records in this window.</p>'
+        summary += '<p class="comparison-gap">No record is present in these files for this category and period. Missing data does not mean no activity occurred.</p>'
+    outside = section.get("outside_period_count", section.get("verified_outside_period", 0))
+    if outside:
+        summary += f'<p class="comparison-gap">{outside} documented {"record is" if outside == 1 else "records are"} in other periods.</p>'
     return (
         f'<div class="comparison-cell"><span class="mobile-person">{name}</span>'
         f'{summary}{"".join(_claim_html(claim) for claim in claims)}</div>'
@@ -80,7 +211,7 @@ def _category_cell(record, category_key):
 
 @st.dialog("Sources used in this comparison", width="large")
 def _comparison_sources(records):
-    st.caption("Sources below support the displayed VERIFIED claims. The issuing body and locator are shown for each reference.")
+    st.caption("Sources below support the displayed comparison records. Verification status, issuing body, and locator are shown for each reference.")
     seen = set()
     source_index = 0
     for record in records:
@@ -102,7 +233,7 @@ def _comparison_sources(records):
                         f'{_source_link(source, source_index)}</article>'
                     )
     if not seen:
-        st.info("No source-complete VERIFIED claims are available for the selected senators and period.")
+        st.info("No source-linked records are available for the selected senators and period.")
 
 
 def render(service):
@@ -196,7 +327,7 @@ def render(service):
             + avatar(record["senator"], "large")
             + f'<h3>{escape(str(record["senator"]["name"]))}</h3>'
             + f'<p>{escape(str(record["period"]))}</p>'
-            + f'<p>{record["verified_claim_count"]} verified records · {record["source_count"]} sources · '
+            + f'<p>{record.get("total_claim_count", record["verified_claim_count"])} records ({record["verified_claim_count"]} verified) · {record["source_count"]} sources · '
             + f'research status: {escape(str(record["research_status"]))} · '
             + f'coverage: {escape(str(record["research_depth"]))}</p>'
             + (
@@ -217,7 +348,7 @@ def render(service):
             )
         st.html(
             f'<div class="comparison-scroll" role="region" aria-label="Side-by-side senator records" tabindex="0" style="--count:{count}">'
-            '<div class="compare-data-note">Only claims marked VERIFIED with complete source provenance are shown. '
-            'Other draft claims are counted as gaps; missing data does not mean no record exists.</div>'
+            '<div class="compare-data-note">All documented claims from each senator’s research file are shown, ranked with VERIFIED records first. '
+            'Each entry keeps its original classification label; missing data does not mean no record exists.</div>'
             + f'<div class="comparison-grid comparison-portraits">{people}</div>{"".join(rows)}</div>'
         )

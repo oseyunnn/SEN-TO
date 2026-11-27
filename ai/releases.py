@@ -100,7 +100,14 @@ def prepare_release(chunks, review, source_root):
     return selected, manifest
 
 
-def prepare_markdown_release(chunks, release_id, collection, source_root, subjects=None):
+def prepare_markdown_release(
+    chunks,
+    release_id,
+    collection,
+    source_root,
+    subjects=None,
+    embedding_provider='openai',
+):
     """Build a package from every section in the project's curated Markdown corpus.
 
     The source files are treated as the project's chosen corpus. This records
@@ -144,6 +151,7 @@ def prepare_markdown_release(chunks, release_id, collection, source_root, subjec
     counts = dict(Counter(r['senator_id'] for r in rows))
     require(counts and (not requested or set(counts) == requested), 'Selected subjects need Markdown content.')
     preflight_rows(rows)
+    embedding_model = 'sento-hash-ngram-v1' if embedding_provider == 'local_hash' else 'text-embedding-3-small'
     manifest = {
         'release_id': release_id,
         'collection': collection,
@@ -151,8 +159,8 @@ def prepare_markdown_release(chunks, release_id, collection, source_root, subjec
         'source_format': 'senator_markdown',
         'curation_status': 'project_curated',
         'prepared_at': date.today().isoformat(),
-        'embedding_provider': 'openai',
-        'embedding_model': 'text-embedding-3-small',
+        'embedding_provider': embedding_provider,
+        'embedding_model': embedding_model,
         'embedding_dimensions': 1536,
         'distance_metric': 'cosine',
         'subjects': sorted(counts),

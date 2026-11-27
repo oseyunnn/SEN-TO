@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
+import re
 from typing import Protocol
 from threading import RLock
+import unicodedata
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -123,3 +126,60 @@ class OllamaEmbeddingProvider:
                 raise EmbeddingError("Ollama returned vectors with inconsistent dimensions.")
             normalized.append(values)
         return normalized
+
+
+class LocalHashEmbeddingProvider:
+    """Deterministic in-process feature-hashing embedder for zero-dependency cloud/local retrieval."""
+
+    provider_name = "local_hash"
+
+    def __init__(self, model: str = "sento-hash-ngram-v1", dimensions: int = 1536):
+        if model != "sento-hash-ngram-v1" or dimensions != 1536:
+            raise ValueError("LocalHashEmbeddingProvider requires sento-hash-ngram-v1 / 1536.")
+        self._model = model
+        self.dimensions = dimensions
+
+    @property
+    def model_name(self) -> str:
+        return self._model
+
+    def _embed_one(self, text: str) -> list[float]:
+        folded = "".join(
+            ch for ch in unicodedata.normalize("NFKD", text.casefold())
+            if not unicodedata.combining(ch)
+        )
+        words = re.findall(r"[a-z0-9]+", folded)
+        vec = [0.0] * self.dimensions
+
+        def _add_feature(feature: str, weight: float) -> None:
+            digest = hashlib.blake2b(feature.encode("utf-8"), digest_size=8).digest()
+            raw = int.from_bytes(digest, "little")
+            idx = (raw >> 1) % self.dimensions
+            sign = 1.0 if (raw & 1) else -1.0
+            vec[idx] += sign * weight
+
+        for word in words:
+            _add_feature(f"w:{word}", 2.0)
+            if len(word) >= 3:
+                padded = f"^{word}$"
+                for i in range(len(padded) - 2):
+                    _add_feature(f"c3:{padded[i:i + 3]}", 0.7)
+            if len(word) >= 4:
+                for i in range(len(word) - 3):
+                    _add_feature(f"c4:{word[i:i + 4]}", 0.8)
+        for i in range(len(words) - 1):
+            _add_feature(f"b:{words[i]}_{words[i + 1]}", 1.5)
+
+        norm = math.sqrt(sum(v * v for v in vec))
+        if norm <= 0.0:
+            vec[0] = 1.0
+            return vec
+        inv = 1.0 / norm
+        return [v * inv for v in vec]
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            return []
+        if any(not isinstance(text, str) or not text.strip() for text in texts):
+            raise EmbeddingError("Embedding inputs must be nonempty strings.")
+        return [self._embed_one(text) for text in texts]

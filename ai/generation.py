@@ -199,8 +199,30 @@ class OpenAIResponsesProvider:
         self.client = OpenAI(api_key=api_key, **client_options)
         return self.client
 
+    def _complete_chat_completions(self, instructions: str, input_text: str) -> str:
+        response = self._client().chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": instructions},
+                {"role": "user", "content": input_text},
+            ],
+            max_tokens=MAX_GENERATION_OUTPUT_TOKENS,
+            temperature=0.1,
+        )
+        choices = getattr(response, "choices", None) or []
+        message = getattr(choices[0], "message", None) if choices else None
+        text = getattr(message, "content", None)
+        if not isinstance(text, str) or not text.strip():
+            raise GenerationError("OpenAI returned an empty or malformed answer.")
+        return text.strip()
+
     def complete(self, instructions: str, input_text: str) -> str:
+        use_chat_completions = bool(
+            self.base_url and self.base_url.rstrip("/") != "https://api.openai.com/v1"
+        )
         try:
+            if use_chat_completions:
+                return self._complete_chat_completions(instructions, input_text)
             response = self._client().responses.create(
                 model=self.model,
                 instructions=instructions,
@@ -212,6 +234,13 @@ class OpenAIResponsesProvider:
         except GenerationError:
             raise
         except Exception as exc:
+            if exc.__class__.__name__ == "NotFoundError":
+                try:
+                    return self._complete_chat_completions(instructions, input_text)
+                except GenerationError:
+                    raise
+                except Exception as fallback_exc:
+                    raise GenerationError("The configured OpenAI model could not generate an answer.") from fallback_exc
             raise GenerationError("The configured OpenAI Responses model could not generate an answer.") from exc
         if getattr(response, "status", None) != "completed":
             raise GenerationError("OpenAI returned an incomplete response; the answer was withheld.")
