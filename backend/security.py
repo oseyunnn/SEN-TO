@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 import time
 import unicodedata
+from collections import deque
+from threading import Lock
 from typing import MutableMapping
 
 
@@ -12,6 +14,8 @@ MAX_QUESTION_CHARS = 4000
 MAX_QUESTION_BYTES = 12000
 MAX_SESSION_REQUESTS = 8
 SESSION_REQUEST_WINDOW_SECONDS = 60.0
+DEFAULT_GLOBAL_REQUEST_LIMIT = 30
+DEFAULT_GLOBAL_REQUEST_WINDOW_SECONDS = 60.0
 
 INTERNAL_PROMPT_REFUSAL = (
     "I can’t disclose private system or developer instructions or internal configuration. "
@@ -30,10 +34,10 @@ BULK_RETRIEVAL_REFUSAL_FIL = (
     "Magtanong tungkol sa isang partikular na public record."
 )
 NO_EVIDENCE_FIL = (
-    "Wala akong nakitang nasuring source sa kasalukuyang dataset na sumasagot sa tanong na ito. "
+    "Wala akong nakitang passage sa project-curated notes na sumasagot sa tanong na ito. "
     "Hindi ito nangangahulugang walang pampublikong rekord."
 )
-NO_EVIDENCE_LIMITATION_FIL = "Walang nasuring passage sa kasalukuyang corpus na sumusuporta sa sagot na ito."
+NO_EVIDENCE_LIMITATION_FIL = "Walang passage sa project-curated corpus na sumusuporta sa sagot na ito."
 SERVICE_UNAVAILABLE_FIL = "Pansamantalang hindi available ang source-backed answer service. Walang nabuong sagot."
 
 _FILIPINO_MARKERS = {
@@ -167,3 +171,30 @@ def allow_session_request(
         return False
     requests.append(current)
     return True
+
+
+class SharedRequestLimiter:
+    """Thread-safe per-process sliding-window cap shared by cached app users."""
+
+    def __init__(self, limit: int = DEFAULT_GLOBAL_REQUEST_LIMIT,
+                 window_seconds: float = DEFAULT_GLOBAL_REQUEST_WINDOW_SECONDS):
+        if isinstance(limit, bool) or int(limit) < 1:
+            raise ValueError('The shared request limit must be a positive integer.')
+        if window_seconds <= 0:
+            raise ValueError('The shared request window must be positive.')
+        self.limit = int(limit)
+        self.window_seconds = float(window_seconds)
+        self._timestamps = deque()
+        self._lock = Lock()
+
+    def allow(self, *, now: float | None = None) -> bool:
+        """Reserve one request slot if this process is below its rolling cap."""
+        current = time.monotonic() if now is None else float(now)
+        cutoff = current - self.window_seconds
+        with self._lock:
+            while self._timestamps and self._timestamps[0] <= cutoff:
+                self._timestamps.popleft()
+            if len(self._timestamps) >= self.limit:
+                return False
+            self._timestamps.append(current)
+            return True

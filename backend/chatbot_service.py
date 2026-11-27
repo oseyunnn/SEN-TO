@@ -8,11 +8,14 @@ from backend.policies import policy_violation
 
 
 class ChatbotService:
-    def __init__(self, senators=None, pipeline=None):
+    def __init__(self, senators=None, pipeline=None, *, settings=None, require_cloud=False):
         self.senators = senators or SenatorService()
         self.configuration_error = False
         try:
-            self.pipeline = pipeline or build_default_pipeline()
+            self.pipeline = pipeline or build_default_pipeline(
+                settings=settings,
+                require_cloud=require_cloud,
+            )
         except ValueError:
             self.pipeline = None
             self.configuration_error = True
@@ -48,8 +51,8 @@ class ChatbotService:
             metadata = store.metadata
             import json
             counts = metadata.get('expected_counts') if config.backend == 'qdrant_cloud' else json.loads(metadata.get('coverage_json', '{}'))
-            return {'status': 'reviewed_release', 'count': counts.get(senator_id, 0),
-                    'reviewed_at': metadata.get('reviewed_at'), 'release_id': config.release}
+            return {'status': 'project_curated_release', 'count': counts.get(senator_id, 0),
+                    'curation_status': metadata.get('curation_status'), 'release_id': config.release}
         except Exception:
             return {'status': 'service_unavailable', 'count': None, 'reviewed_at': None}
     def indexed_passage_count(self):

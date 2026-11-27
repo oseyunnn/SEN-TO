@@ -13,14 +13,14 @@ from backend.security import (
     requests_bulk_retrieval,
     requests_internal_prompt,
 )
-from frontend.api import send_chat_message, get_chatbot_service
+from frontend.api import send_chat_message
 from frontend.components.senator_card import avatar, profile
 from frontend.components.chat_bubble import chat_bubble
 
 
 _LOADING_LABELS = {
     "checking_scope": "Checking what this dataset can answer",
-    "searching_sources": "Searching reviewed sources",
+    "searching_sources": "Searching project-curated Markdown notes",
     "checking_evidence": "Checking the evidence for this senator",
     "writing_answer": "Writing a source-linked answer",
     "checking_citations": "Checking citations and source links",
@@ -28,7 +28,7 @@ _LOADING_LABELS = {
 
 
 def _loading_status(stage):
-    label = escape(_LOADING_LABELS.get(stage, "Searching reviewed sources"))
+    label = escape(_LOADING_LABELS.get(stage, "Searching project-curated Markdown notes"))
     return (
         '<div class="chat-loading-status" role="status" aria-live="polite">'
         '<span class="thinking-dots" aria-hidden="true"><i></i><i></i><i></i></span>'
@@ -76,7 +76,7 @@ def _send_with_progress(senator_id, question, progress_callback, congress_id=Non
 
 @st.dialog("Sources & evidence", width="large")
 def _dataset_profile(senator):
-    st.write("Chat searches reviewed, indexed sources for the selected directory entry. Source links and locators for an answer appear with that answer.")
+    st.write("Chat searches the project's curated Markdown notes for the selected directory entry. Available citations and source locators appear with each answer.")
     st.caption("A missing result does not prove that no public record exists; this dataset may not cover every record.")
     st.caption("The directory names come from a dated official 20th Congress roster; profile facts and affiliations are unverified.")
     profile(senator)
@@ -100,7 +100,7 @@ def render(service):
         with st.container(key="chat_content"):
             answer_loading_slot = None
             if not history:
-                st.html(f'<div class="welcome">{avatar(senator,"hero")}<div class="tricolor"><i></i><i></i><i></i></div><h1>Kilalanin ang Senador Mo!</h1><p>Ask questions and explore the public record <br>of {escape(senator["name"])}.</p><small>SEN’TO summarizes reviewed sources. It does not speak for a senator, and its records may be incomplete.</small></div>')
+                st.html(f'<div class="welcome">{avatar(senator,"hero")}<div class="tricolor"><i></i><i></i><i></i></div><h1>Kilalanin ang Senador Mo!</h1><p>Ask questions and explore the public record <br>of {escape(senator["name"])}.</p><small>SEN’TO summarizes the project’s curated Markdown notes. It does not speak for a senator, and its records may be incomplete.</small></div>')
                 with st.container(key="suggestions"):
                     questions = service.suggestions(senator["id"])
                     labels = ["What bills has this senator authored?", "What committees does this senator serve on?", "What are this senator’s documented positions?", "Explore this senator’s legislative contributions"]

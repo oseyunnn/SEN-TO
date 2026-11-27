@@ -43,14 +43,15 @@ def _prepare_chunks(chunks: Iterable[dict]) -> list[dict]:
     for original in chunks:
         if not isinstance(original, dict):
             continue
-        if original.get("verification_status") != "verified":
+        project_curated = original.get("curation_status") == "project_curated"
+        if original.get("verification_status") != "verified" and not project_curated:
             continue
         chunk_id = original.get("chunk_id")
         text = original.get("text")
         if not isinstance(chunk_id, str) or not chunk_id or not isinstance(text, str) or not text.strip():
             continue
         sources = _citation_sources(original)
-        if not sources or any(source.get("verification_status") != "verified" for source in sources):
+        if not sources or (not project_curated and any(source.get("verification_status") != "verified" for source in sources)):
             continue
         senator_ids = original.get("senator_ids") or []
         if original.get("senator_id"):
@@ -67,6 +68,7 @@ def _prepare_chunks(chunks: Iterable[dict]) -> list[dict]:
             record["senator_ids"] = [senator_id]
             record["citation_sources"] = sources
             record["source_ids"] = [source.get("source_id") for source in sources if source.get("source_id")]
+            record.setdefault("curation_status", "verified_source")
             record["section"] = record.get("section") or record.get("record_type") or "Public record"
             record["relevant_period"] = record.get("relevant_period") or "Not specified"
             record["index_id"] = f"{chunk_id}::{senator_id}"
@@ -100,7 +102,8 @@ def _metadata_for(record: dict) -> dict[str, str]:
     payload = json.dumps(record, ensure_ascii=False, sort_keys=True)
     return {
         "senator_id": record["senator_id"],
-        "verification_status": "verified",
+        "verification_status": str(record.get("verification_status") or "unknown"),
+        "curation_status": str(record.get("curation_status") or "verified_source"),
         "relevant_period": str(record["relevant_period"]),
         "congress_id": str(record.get("congress_id") or ""),
         "section": str(record["section"]),
@@ -255,7 +258,10 @@ class ChromaVectorStore:
             vector = self.embedder.embed([query])[0]
             filters = [
                 {"senator_id": senator_id},
-                {"verification_status": "verified"},
+                {"$or": [
+                    {"curation_status": "project_curated"},
+                    {"verification_status": "verified"},
+                ]},
             ]
             if relevant_period:
                 filters.append({"relevant_period": relevant_period})
@@ -284,7 +290,7 @@ class ChromaVectorStore:
                 continue
             if (
                 record.get("senator_id") != senator_id
-                or record.get("verification_status") != "verified"
+                or (record.get("curation_status") != "project_curated" and record.get("verification_status") != "verified")
                 or (relevant_period and record.get("relevant_period") != relevant_period)
                 or (congress_id and record.get("congress_id") != congress_id)
                 or not text

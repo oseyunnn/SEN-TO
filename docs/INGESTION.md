@@ -1,58 +1,29 @@
-# SEN’TO document ingestion (first version)
+# SEN’TO Markdown ingestion
 
-This is a developer-run, local ingestion step for a deliberately small corpus. The original-record importer and the senator-record importer process only developer-curated local files. They do not crawl the web or accept uploads. Embeddings, vector storage, retrieval, and LLM generation are separate pipeline stages. Ingested source passages remain untrusted reference text.
+The active Chatbot corpus uses the project-curated senator Markdown files only. PDF and HTML processing is disabled. The importer reads local files and does not fetch cited URLs or accept uploads. Ingested passages remain untrusted reference text even when a profile author marks a claim `VERIFIED`.
 
-For the one-file-per-senator Markdown layout, including the exact section list and claim-level References format, see [Senator Markdown record format](SENATOR_RECORD_FORMAT.md). Run `python tools/ingest_senator_records.py` to create `data/corpus/processed/senator_chunks.jsonl`; run `python tools/ingest_documents.py` for the original-document manifest flow below.
+## Source format
 
-## Where to find records
+See [Senator Markdown record format](SENATOR_RECORD_FORMAT.md) for the per-senator file format. Current profiles use stable claim IDs, explicit periods and evidence statuses, and `SRC-*` references. The reference entries retain source titles, issuing bodies, original URLs, dates, relevant periods, and locators.
 
-Start with original records published by the Philippine Senate:
+Every body section and claim in each Markdown file is included regardless of `Evidence_Status`. Existing claim statuses and available source metadata remain attached to the chunks; the software does not revise or independently confirm them. A source-file checksum is recorded for reproducibility.
 
-- The Senate Legislative Information System and document pages on [senate.gov.ph](https://senate.gov.ph/) and its official legacy subdomain are the first place to look for bills, resolutions, journals, committee reports, and other legislative records.
-- The Senate Legislative Reference Bureau describes its [collections](https://issuances-library.senate.gov.ph/collections) and its [online reference services](https://issuances-library.senate.gov.ph/reference-and-information-services). Its page says electronic copies of journals, bills, and legislative history from the 13th Congress onward are available through the Senate website; some older material may require a request.
-- For an enacted statute, use an official Senate record for its legislative history and an official publication such as the [Official Gazette](https://www.officialgazette.gov.ph/) for the law text, when available. Do not treat a filed bill as an enacted law.
+## Build chunks and a release
 
-For this first corpus, a developer manually selects an official record, saves its PDF or HTML page under `data/corpus/originals/`, reviews the source and exact document identity, and records its canonical HTTPS URL and dates in `manifest.json`. Markdown files (`.md` or `.markdown`) are also accepted for locally prepared or transcribed text; retain the official record URL in the manifest and verify the Markdown against that source before marking it `verified`. The importer rejects non-allowlisted source hosts. To add another official publisher later, review and deliberately update the allowlist in `ai/ingestion.py`; do not weaken it to accept arbitrary URLs.
-
-## Metadata manifest
-
-`data/corpus/manifest.json` is an array. Each entry represents one source document, not a chunk. Required fields:
-
-```json
-{
-  "document_id": "senate-journal-20c-2026-001",
-  "title": "Exact title shown by the issuing source",
-  "issuing_body": "Senate of the Philippines",
-  "source_url": "https://senate.gov.ph/path/to/original-record.pdf",
-  "publication_date": "2026-07-27",
-  "retrieved_at": "2026-11-24",
-  "relevant_period": "20th Congress, First Regular Session",
-  "record_type": "journal",
-  "verification_status": "verified",
-  "senator_ids": [],
-  "source_file": "senate-journal-20c-2026-001.pdf"
-}
-```
-
-Use the source's actual title and issuing body. `publication_date` may be `null` if the source does not provide one. `retrieved_at` is the date the developer saved/reviewed the file. Set `verification_status` to `verified` only after checking that the local file is the same record as the cited official page. The importer intentionally refuses candidate, stale, or conflicting records. Keep `senator_ids` empty unless the record's relationship to those people has been checked; the existing directory IDs are design examples, not evidence.
-
-The importer computes a SHA-256 of each original and stores it with every chunk. Optionally add an `expected_sha256` value (64 hexadecimal characters) after downloading and reviewing a file; ingestion compares the file against that pinned value and stops if it changed. It retains source URL, dates, period, record type, document ID, and an exact page or HTML heading locator on every chunk. It does not modify the original file.
-
-## Extract, normalize, and chunk
-
-Run from the repository root after installing the declared requirements:
+Run from the repository root after installing `requirements.txt`:
 
 ```sh
-python -m pip install -r requirements.txt
-python tools/ingest_documents.py
+python tools/ingest_senator_records.py
+python tools/prepare_markdown_release.py \
+  --release-id demo-md-r1 \
+  --collection sento_demo_md_r1_openai_te3small_1536 \
+  --output-dir data/releases/demo-md-r1
 ```
 
-The importer extracts selectable text from PDFs with `pypdf`; PDF pages become locators. It parses HTML locally and drops scripts, styles, forms, navigation, and footer text; headings become section locators. It reads Markdown as UTF-8 and uses ATX headings (`#`, `##`, and so on) as section locators. It does not execute HTML or fetch linked resources. Scanned/image-only PDFs are rejected with an explicit message; OCR is not included because OCR can create factual transcription errors and needs manual review.
+The first command writes `data/corpus/processed/senator_chunks.jsonl`. The release builder reparses current Markdown and refuses if the chunk file differs. Each chunk carries the senator ID and name, section and file locator, period when stated, source citations, and source-file SHA-256. The output package contains `chunks.jsonl` and a manifest with per-subject counts, source checksums, and embedding identity. Existing nonempty release directories are never overwritten. The builder does not change source files.
 
-Normalization applies Unicode NFKC, removes soft hyphens and formatting/control characters (including zero-width/bidi controls), ignores scripts/styles/forms/navigation/footers and explicitly hidden HTML elements, normalizes line endings and repeated whitespace, and preserves paragraph breaks. Keep the raw original and its checksum so normalization never replaces the source evidence. Chunking is deterministic, paragraph-aware, approximately 1,200 characters with 180 characters of overlap, and does not cross PDF pages or HTML heading sections. Character-based chunking is a starter baseline; inspect the extracted passages and adjust with a reviewed question set before embedding.
+Source file changes require rebuilding the chunks and release package. The release is marked `project_curated`; every Markdown file is treated as trusted project content, while original claim statuses remain visible in metadata. The historical original-document manifest importer is not used for Chat releases and rejects PDF/HTML inputs.
 
-Generated chunks go to `data/corpus/processed/chunks.jsonl` and are ignored by Git by default. Each JSONL row is a chunk with a stable content-derived ID, source metadata, locator, checksum, extraction/chunking versions, MIME type, and `content_trust: untrusted_official_source_text`. For Markdown inputs, the checksum is for the local Markdown file; the official source URL and manual review establish its provenance. Do not feed a chunk's text to an LLM as an instruction. A later retrieval step should store the source ID and locator with every vector and validate citations against retrieved chunk IDs.
+## Publication
 
-## First review before embedding
-
-For every ingested record, manually inspect the extracted text against its original file, especially names, bill numbers, dates, vote marks, tables, and page boundaries. Confirm the title, issuing body, URL, publication date, relevant period, and official-source status. If PDF text is empty or garbled, stop and correct the extraction through a separately reviewed process; do not silently index it. No records have been added to the corpus yet.
+Use the dry-run, apply, and health-check commands in [Qdrant setup](QDRANT_SETUP.md). Dry run validates the package without model or database calls. Apply sends the selected Markdown passages to OpenAI for embeddings and writes vectors and payloads to a new Qdrant collection. The hosted app only reads an already published collection with its read-only key.
