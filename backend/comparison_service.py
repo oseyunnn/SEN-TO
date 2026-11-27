@@ -173,15 +173,17 @@ def _matches_congress_window(period: str) -> bool:
 
 _STATUS_RANK = {
     "VERIFIED": 0,
+    "CORROBORATED": 2,
     "OFFICIAL_STATEMENT": 2,
     "PARTIALLY_VERIFIED": 2,
     "DOCUMENTED": 2,
-    "PENDING_INVESTIGATION": 3,
-    "CONTESTED": 3,
-    "DISPUTED": 3,
-    "ALLEGED": 3,
-    "UNVERIFIED": 4,
-    "UNSPECIFIED": 5,
+    "REPORTED": 3,
+    "PENDING_INVESTIGATION": 4,
+    "CONTESTED": 4,
+    "DISPUTED": 4,
+    "ALLEGED": 4,
+    "UNVERIFIED": 5,
+    "UNSPECIFIED": 6,
 }
 
 

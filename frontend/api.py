@@ -83,7 +83,7 @@ def get_chatbot_service():
     return _cached_chatbot_service(digest, settings)
 
 
-def _session_response_cache_key(service, senator_id, message, congress_id):
+def _session_response_cache_key(service, senator_id, message, congress_id, history=None):
     pipeline = getattr(service, 'pipeline', None)
     if pipeline is None:
         return None
@@ -100,12 +100,18 @@ def _session_response_cache_key(service, senator_id, message, congress_id):
     settings_digest = hashlib.sha256(
         json.dumps(_chat_runtime_secrets(), sort_keys=True, separators=(',', ':'), default=str).encode()
     ).hexdigest()
+    history_tail = [
+        (item.get("role"), item.get("content") or (item.get("response") or {}).get("answer", "")[:160])
+        for item in (history or [])[-4:]
+        if isinstance(item, dict)
+    ]
     identity = {
         'cache_version': SESSION_RESPONSE_CACHE_VERSION,
         'runtime_settings': settings_digest,
         'question': message,
         'senator_id': senator_id,
         'congress_id': congress_id,
+        'history_tail': history_tail,
         'style': style,
         'release': config.release,
         'collection': config.collection,
@@ -124,7 +130,7 @@ def _session_response_cache_key(service, senator_id, message, congress_id):
     return hashlib.sha256(serialized.encode()).hexdigest()
 
 
-def send_chat_message(senator_id, message, congress_id=None, progress_callback=None):
+def send_chat_message(senator_id, message, congress_id=None, progress_callback=None, history=None):
     """Run one question through RAG, reusing exact recent answers in-session."""
     from backend.security import normalize_question
 
@@ -150,7 +156,7 @@ def send_chat_message(senator_id, message, congress_id=None, progress_callback=N
             ):
                 cache.pop(key, None)
 
-    cache_key = _session_response_cache_key(service, senator_id, message, congress_id) if cache is not None else None
+    cache_key = _session_response_cache_key(service, senator_id, message, congress_id, history=history) if cache is not None else None
     if cache_key is not None and cache_key in cache:
         return deepcopy(cache[cache_key][1])
 
@@ -159,6 +165,8 @@ def send_chat_message(senator_id, message, congress_id=None, progress_callback=N
         options["congress_id"] = congress_id
     if progress_callback:
         options["progress_callback"] = progress_callback
+    if history:
+        options["history"] = history
     response = service.ask(message, senator_id, **options)
     validation = response.get('validation') if isinstance(response, dict) else None
     status = validation.get('status') if isinstance(validation, dict) else None

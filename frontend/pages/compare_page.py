@@ -117,7 +117,7 @@ def _status_badge(claim: dict) -> str:
         return '<span class="comparison-badge comparison-badge-verified">VERIFIED</span>'
     if raw_status == "VERIFIED":
         return '<span class="comparison-badge comparison-badge-verified-candidate">VERIFIED · CANDIDATE SOURCE</span>'
-    if raw_status in {"PARTIALLY_VERIFIED", "DOCUMENTED", "OFFICIAL_STATEMENT"}:
+    if raw_status in {"CORROBORATED", "PARTIALLY_VERIFIED", "DOCUMENTED", "OFFICIAL_STATEMENT"}:
         label = raw_status.replace("_", " ")
         return f'<span class="comparison-badge comparison-badge-partial">{escape(label)}</span>'
     if raw_status in {"ALLEGED", "CONTESTED", "DISPUTED", "PENDING_INVESTIGATION"}:

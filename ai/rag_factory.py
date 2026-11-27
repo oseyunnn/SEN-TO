@@ -114,10 +114,12 @@ def build_default_pipeline(config=None, *, settings=None, require_cloud=False) -
         SharedRequestLimiter(config.global_request_limit, config.global_request_window_seconds)
         if config.backend == 'qdrant_cloud' else None
     )
+    from ai.web_research import WebResearcher
     return RAGPipeline(
         retriever=retriever,
         generator=generator,
         validator=EvidenceValidator(),
         top_k=top_k,
         request_limiter=request_limiter,
+        web_researcher=WebResearcher(),
     )
