@@ -48,7 +48,7 @@ def _answer_skeleton(first_turn=False):
     )
 
 
-def _send_with_progress(senator_id, question, progress_callback, congress_id=None):
+def _send_with_progress(senator_id, question, progress_callback, congress_id=None, history=None):
     try:
         parameters = inspect.signature(send_chat_message).parameters
     except (TypeError, ValueError):
@@ -71,6 +71,8 @@ def _send_with_progress(senator_id, question, progress_callback, congress_id=Non
         options["congress_id"] = congress_id
     if progress_callback and accepts_keyword("progress_callback"):
         options["progress_callback"] = progress_callback
+    if history and accepts_keyword("history"):
+        options["history"] = history
     return send_chat_message(senator_id, question, **options)
 
 
@@ -170,7 +172,7 @@ def render(service):
                             loading_status_slot.html(_loading_status(stage))
 
                         try:
-                            result = _send_with_progress(senator["id"], question, report_progress)
+                            result = _send_with_progress(senator["id"], question, report_progress, history=history)
                         finally:
                             if answer_loading_slot is not None:
                                 answer_loading_slot.empty()

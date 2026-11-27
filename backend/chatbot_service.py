@@ -20,7 +20,7 @@ class ChatbotService:
             self.pipeline = None
             self.configuration_error = True
 
-    def ask(self, question, senator_id, congress_id=None, progress_callback: Callable[[str], None] | None = None):
+    def ask(self, question, senator_id, congress_id=None, progress_callback: Callable[[str], None] | None = None, history=None):
         question = normalize_question(question)
         senator = self.senators.get(senator_id)
         guarded = policy_violation(question) or requests_internal_prompt(question) or requests_bulk_retrieval(question)
@@ -37,6 +37,8 @@ class ChatbotService:
             run_options["congress_id"] = congress_id
         if progress_callback:
             run_options["progress_callback"] = progress_callback
+        if history:
+            run_options["history"] = history
         return self.pipeline.run(question, senator, self.senators.style(senator_id), **run_options)
 
     def coverage(self, senator_id):
